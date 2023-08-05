@@ -3959,8 +3959,8 @@ class gate extends Exchange {
         //        "order_type" => ""
         //    }
         //
-        $put = $this->safe_value_2($order, 'put', 'initial', array());
-        $trigger = $this->safe_value($order, 'trigger', array());
+        $put = $this->safe_value_2($order, 'put', 'initial');
+        $trigger = $this->safe_value($order, 'trigger');
         $contract = $this->safe_string($put, 'contract');
         $type = $this->safe_string($put, 'type');
         $timeInForce = $this->safe_string_upper_2($put, 'time_in_force', 'tif');
@@ -4061,8 +4061,8 @@ class gate extends Exchange {
             'reduceOnly' => $this->safe_value($order, 'is_reduce_only'),
             'side' => $side,
             'price' => $this->parse_number($price),
-            'stopPrice' => $this->safe_number($trigger, 'price'),
-            'triggerPrice' => $this->safe_number($trigger, 'price'),
+            //'stopPrice' => $this->safe_number($trigger, 'price'),
+            //'triggerPrice' => $this->safe_number($trigger, 'price'),
             'average' => $average,
             'amount' => $this->parse_number(Precise::string_abs($amount)),
             'cost' => Precise::string_abs($cost),
