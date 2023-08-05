@@ -103,9 +103,6 @@ abstract class kraken extends \ccxt\Exchange {
     public function private_post_removeexport($params = array()) {
         return $this->request('RemoveExport', 'private', 'POST', $params, null, null, array("cost" => 3));
     }
-    public function private_post_balanceex($params = array()) {
-        return $this->request('BalanceEx', 'private', 'POST', $params, null, null, array("cost" => 3));
-    }
     public function private_post_tradebalance($params = array()) {
         return $this->request('TradeBalance', 'private', 'POST', $params, null, null, array("cost" => 3));
     }
@@ -193,6 +190,9 @@ abstract class kraken extends \ccxt\Exchange {
     public function privatePostBalance($params = array()) {
         return $this->request('Balance', 'private', 'POST', $params, null, null, array("cost" => 3));
     }
+    public function privatePostBalanceEx($params = array()) {
+        return $this->request('BalanceEx', 'private', 'POST', $params, null, null, array("cost" => 3));
+    }
     public function privatePostCancelAll($params = array()) {
         return $this->request('CancelAll', 'private', 'POST', $params, null, null, array("cost" => 3));
     }
@@ -246,9 +246,6 @@ abstract class kraken extends \ccxt\Exchange {
     }
     public function privatePostRemoveExport($params = array()) {
         return $this->request('RemoveExport', 'private', 'POST', $params, null, null, array("cost" => 3));
-    }
-    public function privatePostBalanceEx($params = array()) {
-        return $this->request('BalanceEx', 'private', 'POST', $params, null, null, array("cost" => 3));
     }
     public function privatePostTradeBalance($params = array()) {
         return $this->request('TradeBalance', 'private', 'POST', $params, null, null, array("cost" => 3));

@@ -37,6 +37,7 @@ class kraken extends Exchange {
                 'createStopOrder' => true,
                 'editOrder' => true,
                 'fetchBalance' => true,
+                'fetchBalanceExtended' => true,
                 'fetchBorrowInterest' => false,
                 'fetchBorrowRate' => false,
                 'fetchBorrowRateHistories' => false,
@@ -178,7 +179,6 @@ class kraken extends Exchange {
                         'QueryTrades' => 3,
                         'RetrieveExport' => 3,
                         'RemoveExport' => 3,
-                        'BalanceEx' => 3,
                         'TradeBalance' => 3,
                         'TradesHistory' => 6,
                         'TradeVolume' => 3,
@@ -1209,6 +1209,27 @@ class kraken extends Exchange {
          */
         $this->load_markets();
         $response = $this->privatePostBalance ($params);
+        //
+        //     {
+        //         "error":array(),
+        //         "result":{
+        //             "ZUSD":"58.8649",
+        //             "KFEE":"4399.43",
+        //             "XXBT":"0.0000034506",
+        //         }
+        //     }
+        //
+        return $this->parse_balance($response);
+    }
+
+    public function fetch_balance_extended($params = array ()) {
+        /**
+         * query for balance and get the amount of funds available for trading or funds locked in orders
+         * @param {array} [$params] extra parameters specific to the kraken api endpoint
+         * @return {array} a ~@link https://docs.ccxt.com/en/latest/manual.html?#balance-structure balance structure~
+         */
+        $this->load_markets();
+        $response = $this->privatePostBalanceEx ($params);
         //
         //     {
         //         "error":array(),
