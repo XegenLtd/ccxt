@@ -2181,7 +2181,7 @@ class huobi extends \ccxt\async\huobi {
                         'Signature' => $signature,
                     );
                 }
-                Async\await($this->watch($url, $messageHash, $request, $messageHash, $future));
+                Async\await($this->watch($url, $messageHash, $request, $messageHash, array()));
             }
             return Async\await($future);
         }) ();
