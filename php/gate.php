@@ -3979,13 +3979,13 @@ class gate extends Exchange {
         $price = $this->safe_string($order, 'price', $price);
         $remainingString = $this->safe_string($order, 'left');
         $cost = $this->safe_string($order, 'filled_total');
-        $triggerPrice = $this->safe_number($trigger, 'price');
+        //$triggerPrice = $this->safe_number($trigger, 'price');
         $rawStatus = null;
         $average = $this->safe_number_2($order, 'avg_deal_price', 'fill_price');
-        if ($triggerPrice) {
+        /*if ($triggerPrice) {
             $remainingString = $amount;
             $cost = '0';
-        }
+        }*/
         if ($contract) {
             $isMarketOrder = Precise::string_equals($price, '0') && ($timeInForce === 'IOC');
             $type = $isMarketOrder ? 'market' : 'limit';
@@ -4058,8 +4058,8 @@ class gate extends Exchange {
             'reduceOnly' => $this->safe_value($order, 'is_reduce_only'),
             'side' => $side,
             'price' => $price,
-            'stopPrice' => $triggerPrice,
-            'triggerPrice' => $triggerPrice,
+            //'stopPrice' => $triggerPrice,
+            //'triggerPrice' => $triggerPrice,
             'average' => $average,
             'amount' => Precise::string_abs($amount),
             'cost' => Precise::string_abs($cost),
