@@ -4135,10 +4135,8 @@ class gate extends Exchange {
             $isMarketOrder = Precise::string_equals($price, '0') && ($timeInForce === 'IOC');
             $type = $isMarketOrder ? 'market' : 'limit';
             $side = Precise::string_gt($amount, '0') ? 'buy' : 'sell';
-            $rawStatus = $this->safe_string($order, 'finish_as', 'open');
-        } else {
-            $rawStatus = $this->safe_string($order, 'status');
         }
+        $rawStatus = $this->safe_string_n($order, array( 'status', 'finish_as', 'open' ));
         $timestamp = $this->safe_integer($order, 'create_time_ms');
         if ($timestamp === null) {
             $timestamp = $this->safe_timestamp_2($order, 'create_time', 'ctime');
