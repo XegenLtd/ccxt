@@ -291,6 +291,7 @@ class gate extends Exchange {
                             'spot/orders/{order_id}' => 1.5,
                         ),
                         'post' => array(
+                            'account_mode' => 1.5,
                             'loans' => 1.5,
                             'spot/orders' => 1.5,
                         ),
@@ -4137,7 +4138,7 @@ class gate extends Exchange {
             $type = $isMarketOrder ? 'market' : 'limit';
             $side = Precise::string_gt($amount, '0') ? 'buy' : 'sell';
         }
-        $rawStatus = $this->safe_string_n($order, array( 'status', 'finish_as', 'open' ));
+        $rawStatus = $this->safe_string_n($order, array( 'finish_as', 'status', 'open' ));
         $timestamp = $this->safe_integer($order, 'create_time_ms');
         if ($timestamp === null) {
             $timestamp = $this->safe_timestamp_2($order, 'create_time', 'ctime');

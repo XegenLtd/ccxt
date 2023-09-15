@@ -314,6 +314,7 @@ class gate(Exchange, ImplicitAPI):
                             'spot/orders/{order_id}': 1.5,
                         },
                         'post': {
+                            'account_mode': 1.5,
                             'loans': 1.5,
                             'spot/orders': 1.5,
                         },
@@ -3962,7 +3963,7 @@ class gate(Exchange, ImplicitAPI):
             isMarketOrder = Precise.string_equals(price, '0') and (timeInForce == 'IOC')
             type = 'market' if isMarketOrder else 'limit'
             side = 'buy' if Precise.string_gt(amount, '0') else 'sell'
-        rawStatus = self.safe_string_n(order, ['status', 'finish_as', 'open'])
+        rawStatus = self.safe_string_n(order, ['finish_as', 'status', 'open'])
         timestamp = self.safe_integer(order, 'create_time_ms')
         if timestamp is None:
             timestamp = self.safe_timestamp_2(order, 'create_time', 'ctime')
