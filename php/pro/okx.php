@@ -1067,7 +1067,7 @@ class okx extends \ccxt\async\okx {
         for ($i = 0; $i < count($rawOrders); $i++) {
             $rawOrder = $rawOrders[$i];
             $tradeId = $this->safe_string($rawOrder, 'tradeId');
-            if (!$this->is_empty($tradeId)) {
+            if (!$this->is_empty($rawOrder)) {
                 $order = $this->parse_order($rawOrder);
                 $filteredOrders[] = $order;
             }
