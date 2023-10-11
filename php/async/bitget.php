@@ -1663,8 +1663,25 @@ class bitget extends Exchange {
             //         "data" => "888291686266343424"
             //     }
             //
+            //     {
+            //          "code":"00000",
+            //          "msg":"success",
+            //          "requestTime":1696784219602,
+            //          "data":{
+            //              "orderId":"1094957867615789056",
+            //              "clientOrderId":"64f1e4ce842041d296b4517df1b5c2d7"
+            //          }
+            //      }
+            //
+            $data = $this->safe_value($response, 'data');
+            $id = null;
+            if (gettype($data) === 'string') {
+                $id = $data;
+            } elseif ($data !== null) {
+                $id = $this->safe_string($data, 'orderId');
+            }
             $result = array(
-                'id' => $this->safe_string($response, 'data'),
+                'id' => $id,
                 'info' => $response,
                 'txid' => null,
                 'timestamp' => null,
@@ -4439,15 +4456,20 @@ class bitget extends Exchange {
             /**
              * @see https://bitgetlimited.github.io/apidoc/en/mix/#get-history-funding-rate
              * fetches historical funding rate prices
-             * @see https://bitgetlimited.github.io/apidoc/en/mix/#get-history-funding-rate
              * @param {string} $symbol unified $symbol of the $market to fetch the funding rate history for
              * @param {int} [$since] $timestamp in ms of the earliest funding rate to fetch
              * @param {int} [$limit] the maximum amount of {@link https://github.com/ccxt/ccxt/wiki/Manual#funding-rate-history-structure funding rate structures} to fetch
              * @param {array} [$params] extra parameters specific to the bitget api endpoint
+             * @param {boolean} [$params->paginate] default false, when true will automatically $paginate by calling this endpoint multiple times. See in the docs all the [availble parameters](https://github.com/ccxt/ccxt/wiki/Manual#pagination-$params)
              * @return {array[]} a list of {@link https://github.com/ccxt/ccxt/wiki/Manual#funding-rate-history-structure funding rate structures}
              */
             $this->check_required_symbol('fetchFundingRateHistory', $symbol);
             Async\await($this->load_markets());
+            $paginate = false;
+            list($paginate, $params) = $this->handle_option_and_params($params, 'fetchFundingRateHistory', 'paginate');
+            if ($paginate) {
+                return Async\await($this->fetch_paginated_call_incremental('fetchFundingRateHistory', $symbol, $since, $limit, $params, 'pageNo', 50));
+            }
             $market = $this->market($symbol);
             $request = array(
                 'symbol' => $market['id'],
@@ -4458,6 +4480,7 @@ class bitget extends Exchange {
             if ($limit !== null) {
                 $request['pageSize'] = $limit;
             }
+            $request['nextPage'] = true;
             $response = Async\await($this->publicMixGetMarketHistoryFundRate (array_merge($request, $params)));
             //
             //     {
