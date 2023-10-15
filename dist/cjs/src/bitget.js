@@ -1474,6 +1474,7 @@ class bitget extends bitget$1 {
                         'max': undefined,
                     },
                 },
+                'created': undefined,
             };
         }
         return result;
@@ -1573,7 +1574,7 @@ class bitget extends bitget$1 {
         }
         const currency = this.currency(code);
         if (since === undefined) {
-            since = this.milliseconds() - 31556952000; // 1yr
+            since = this.milliseconds() - 7776000000; // 90 days
         }
         let request = {
             'coin': currency['code'],
@@ -1729,7 +1730,7 @@ class bitget extends bitget$1 {
         }
         const currency = this.currency(code);
         if (since === undefined) {
-            since = this.milliseconds() - 31556952000; // 1yr
+            since = this.milliseconds() - 7776000000; // 90 days
         }
         let request = {
             'coin': currency['code'],
@@ -3882,8 +3883,16 @@ class bitget extends bitget$1 {
         //
         const data = this.safeValue(response, 'data');
         if (data !== undefined) {
-            const result = this.safeValue(data, 'orderList', data);
-            return this.addPaginationCursorToResult(data, result);
+            if ('orderList' in data) {
+                const orderList = this.safeValue(data, 'orderList');
+                if (!orderList) {
+                    return [];
+                }
+                return this.addPaginationCursorToResult(data, orderList);
+            }
+            else {
+                return this.addPaginationCursorToResult(response, data);
+            }
         }
         const parsedData = JSON.parse(response);
         return this.safeValue(parsedData, 'data', []);
@@ -4042,10 +4051,17 @@ class bitget extends bitget$1 {
             response = await this.privateSpotPostTradeFills(this.extend(request, params));
         }
         else {
+            const orderId = this.safeString(params, 'orderId'); // when order id is not defined, startTime and endTime are required
             if (since !== undefined) {
                 request['startTime'] = since;
             }
+            else if (orderId === undefined) {
+                request['startTime'] = 0;
+            }
             [request, params] = this.handleUntilOption('endTime', params, request);
+            if (!('endTime' in request) && (orderId === undefined)) {
+                request['endTime'] = this.milliseconds();
+            }
             response = await this.privateMixGetOrderFills(this.extend(request, params));
         }
         //
@@ -5173,14 +5189,14 @@ class bitget extends bitget$1 {
         const id = this.safeString(interest, 'symbol');
         const symbol = this.safeSymbol(id, market);
         const amount = this.safeNumber(interest, 'amount');
-        return {
+        return this.safeOpenInterest({
             'symbol': symbol,
             'openInterestAmount': amount,
             'openInterestValue': undefined,
             'timestamp': timestamp,
             'datetime': this.iso8601(timestamp),
             'info': interest,
-        };
+        }, market);
     }
     handleErrors(code, reason, url, method, headers, body, response, requestHeaders, requestBody) {
         if (!response) {

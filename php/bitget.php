@@ -1468,6 +1468,7 @@ class bitget extends Exchange {
                         'max' => null,
                     ),
                 ),
+                'created' => null,
             );
         }
         return $result;
@@ -1566,7 +1567,7 @@ class bitget extends Exchange {
         }
         $currency = $this->currency($code);
         if ($since === null) {
-            $since = $this->milliseconds() - 31556952000; // 1yr
+            $since = $this->milliseconds() - 7776000000; // 90 days
         }
         $request = array(
             'coin' => $currency['code'],
@@ -1719,7 +1720,7 @@ class bitget extends Exchange {
         }
         $currency = $this->currency($code);
         if ($since === null) {
-            $since = $this->milliseconds() - 31556952000; // 1yr
+            $since = $this->milliseconds() - 7776000000; // 90 days
         }
         $request = array(
             'coin' => $currency['code'],
@@ -3823,8 +3824,15 @@ class bitget extends Exchange {
         //
         $data = $this->safe_value($response, 'data');
         if ($data !== null) {
-            $result = $this->safe_value($data, 'orderList', $data);
-            return $this->add_pagination_cursor_to_result($data, $result);
+            if (is_array($data) && array_key_exists('orderList', $data)) {
+                $orderList = $this->safe_value($data, 'orderList');
+                if (!$orderList) {
+                    return array();
+                }
+                return $this->add_pagination_cursor_to_result($data, $orderList);
+            } else {
+                return $this->add_pagination_cursor_to_result($response, $data);
+            }
         }
         $parsedData = json_decode($response, $as_associative_array = true);
         return $this->safe_value($parsedData, 'data', array());
@@ -3981,10 +3989,16 @@ class bitget extends Exchange {
         if ($market['spot']) {
             $response = $this->privateSpotPostTradeFills (array_merge($request, $params));
         } else {
+            $orderId = $this->safe_string($params, 'orderId'); // when order id is not defined, startTime and endTime are required
             if ($since !== null) {
                 $request['startTime'] = $since;
+            } elseif ($orderId === null) {
+                $request['startTime'] = 0;
             }
             list($request, $params) = $this->handle_until_option('endTime', $params, $request);
+            if (!(is_array($request) && array_key_exists('endTime', $request)) && ($orderId === null)) {
+                $request['endTime'] = $this->milliseconds();
+            }
             $response = $this->privateMixGetOrderFills (array_merge($request, $params));
         }
         //
@@ -3996,7 +4010,7 @@ class bitget extends Exchange {
         //         {
         //           accountId => '6394957606',
         //           $symbol => 'LTCUSDT_SPBL',
-        //           orderId => '864752115272552448',
+        //           $orderId => '864752115272552448',
         //           fillId => '864752115685969921',
         //           orderType => 'limit',
         //           side => 'buy',
@@ -5100,14 +5114,14 @@ class bitget extends Exchange {
         $id = $this->safe_string($interest, 'symbol');
         $symbol = $this->safe_symbol($id, $market);
         $amount = $this->safe_number($interest, 'amount');
-        return array(
+        return $this->safe_open_interest(array(
             'symbol' => $symbol,
             'openInterestAmount' => $amount,
             'openInterestValue' => null,
             'timestamp' => $timestamp,
             'datetime' => $this->iso8601($timestamp),
             'info' => $interest,
-        );
+        ), $market);
     }
 
     public function handle_errors($code, $reason, $url, $method, $headers, $body, $response, $requestHeaders, $requestBody) {

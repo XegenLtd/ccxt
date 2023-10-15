@@ -1472,6 +1472,7 @@ class bitget(Exchange, ImplicitAPI):
                         'max': None,
                     },
                 },
+                'created': None,
             }
         return result
 
@@ -1562,7 +1563,7 @@ class bitget(Exchange, ImplicitAPI):
             raise ArgumentsRequired(self.id + ' fetchDeposits() requires a `code` argument')
         currency = self.currency(code)
         if since is None:
-            since = self.milliseconds() - 31556952000  # 1yr
+            since = self.milliseconds() - 7776000000  # 90 days
         request = {
             'coin': currency['code'],
             'startTime': since,
@@ -1705,7 +1706,7 @@ class bitget(Exchange, ImplicitAPI):
             raise ArgumentsRequired(self.id + ' fetchWithdrawals() requires a `code` argument')
         currency = self.currency(code)
         if since is None:
-            since = self.milliseconds() - 31556952000  # 1yr
+            since = self.milliseconds() - 7776000000  # 90 days
         request = {
             'coin': currency['code'],
             'startTime': since,
@@ -3671,8 +3672,13 @@ class bitget(Exchange, ImplicitAPI):
         #
         data = self.safe_value(response, 'data')
         if data is not None:
-            result = self.safe_value(data, 'orderList', data)
-            return self.add_pagination_cursor_to_result(data, result)
+            if 'orderList' in data:
+                orderList = self.safe_value(data, 'orderList')
+                if not orderList:
+                    return []
+                return self.add_pagination_cursor_to_result(data, orderList)
+            else:
+                return self.add_pagination_cursor_to_result(response, data)
         parsedData = json.loads(response)
         return self.safe_value(parsedData, 'data', [])
 
@@ -3815,9 +3821,14 @@ class bitget(Exchange, ImplicitAPI):
         if market['spot']:
             response = self.privateSpotPostTradeFills(self.extend(request, params))
         else:
+            orderId = self.safe_string(params, 'orderId')  # when order id is not defined, startTime and endTime are required
             if since is not None:
                 request['startTime'] = since
+            elif orderId is None:
+                request['startTime'] = 0
             request, params = self.handle_until_option('endTime', params, request)
+            if not ('endTime' in request) and (orderId is None):
+                request['endTime'] = self.milliseconds()
             response = self.privateMixGetOrderFills(self.extend(request, params))
         #
         #     {
@@ -4864,14 +4875,14 @@ class bitget(Exchange, ImplicitAPI):
         id = self.safe_string(interest, 'symbol')
         symbol = self.safe_symbol(id, market)
         amount = self.safe_number(interest, 'amount')
-        return {
+        return self.safe_open_interest({
             'symbol': symbol,
             'openInterestAmount': amount,
             'openInterestValue': None,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
             'info': interest,
-        }
+        }, market)
 
     def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if not response:

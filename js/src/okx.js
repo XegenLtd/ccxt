@@ -1241,6 +1241,7 @@ export default class okx extends Exchange {
                 'type': type,
                 'currency': undefined,
                 'info': account,
+                'code': undefined,
             });
         }
         return result;
@@ -1260,7 +1261,6 @@ export default class okx extends Exchange {
         for (let i = 0; i < types.length; i++) {
             promises.push(this.fetchMarketsByType(types[i], params));
         }
-        // why not both ¯\_(ツ)_/¯
         promises = await Promise.all(promises);
         for (let i = 0; i < promises.length; i++) {
             result = this.arrayConcat(result, promises[i]);
@@ -1394,6 +1394,7 @@ export default class okx extends Exchange {
             'expiryDatetime': this.iso8601(expiry),
             'strike': strikePrice,
             'optionType': optionType,
+            'created': this.safeInteger(market, 'listTime'),
             'precision': {
                 'amount': this.safeNumber(market, 'lotSz'),
                 'price': this.parseNumber(tickSize),
@@ -2115,6 +2116,7 @@ export default class okx extends Exchange {
             }
         }
         else if (price === 'index') {
+            request['instId'] = market['info']['instFamily']; // okx index candles require instFamily instead of instId
             if (isHistoryCandles) {
                 response = await this.publicGetMarketHistoryIndexCandles(this.extend(request, params));
             }
@@ -6580,7 +6582,7 @@ export default class okx extends Exchange {
             openInterestAmount = this.safeNumber(interest, 'oi');
             openInterestValue = this.safeNumber(interest, 'oiCcy');
         }
-        return {
+        return this.safeOpenInterest({
             'symbol': this.safeSymbol(id),
             'baseVolume': baseVolume,
             'quoteVolume': quoteVolume,
@@ -6589,7 +6591,7 @@ export default class okx extends Exchange {
             'timestamp': timestamp,
             'datetime': this.iso8601(timestamp),
             'info': interest,
-        };
+        }, market);
     }
     setSandboxMode(enable) {
         super.setSandboxMode(enable);
