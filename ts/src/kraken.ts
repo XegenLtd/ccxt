@@ -7,7 +7,7 @@ import { Precise } from './base/Precise.js';
 import { TRUNCATE, TICK_SIZE } from './base/functions/number.js';
 import { sha256 } from './static_dependencies/noble-hashes/sha256.js';
 import { sha512 } from './static_dependencies/noble-hashes/sha512.js';
-import { Int, OrderSide, OrderType, OHLCV } from './base/types.js';
+import { Int, OrderSide, OrderType, OHLCV, Trade } from './base/types.js';
 
 //  ---------------------------------------------------------------------------
 
@@ -500,6 +500,7 @@ export default class kraken extends Exchange {
                         'max': undefined,
                     },
                 },
+                'created': undefined,
                 'info': market,
             });
         }
@@ -823,7 +824,7 @@ export default class kraken extends Exchange {
             const ticker = tickers[id];
             result[symbol] = this.parseTicker (ticker, market);
         }
-        return this.filterByArray (result, 'symbol', symbols);
+        return this.filterByArrayTickers (result, 'symbol', symbols);
     }
 
     async fetchTicker (symbol: string, params = {}) {
@@ -966,7 +967,7 @@ export default class kraken extends Exchange {
         } else {
             direction = 'in';
         }
-        const timestamp = this.safeIntegerProduct (item, 'time', 1000);
+        const timestamp = this.safeTimestamp (item, 'time');
         return {
             'info': item,
             'id': id,
@@ -1724,7 +1725,8 @@ export default class kraken extends Exchange {
             throw new OrderNotFound (this.id + ' fetchOrder() could not find order id ' + id);
         }
         const order = this.parseOrder (this.extend ({ 'id': id }, result[id]));
-        return this.extend ({ 'info': response }, order);
+        order['info'] = order;
+        return order;
     }
 
     async fetchOrderTrades (id: string, symbol: string = undefined, since: Int = undefined, limit: Int = undefined, params = {}) {
@@ -1806,7 +1808,7 @@ export default class kraken extends Exchange {
             const tradesFilteredBySymbol = this.filterBySymbol (trades, symbol);
             result = this.arrayConcat (result, tradesFilteredBySymbol);
         }
-        return result;
+        return result as Trade[];
     }
 
     async fetchOrdersByIds (ids, symbol: string = undefined, params = {}) {

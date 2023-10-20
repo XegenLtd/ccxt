@@ -403,7 +403,7 @@ export default class woo extends Exchange {
                         'max': undefined,
                     },
                 },
-                'created': this.safeIntegerProduct (market, 'created_time', 1000),
+                'created': this.safeTimestamp (market, 'created_time'),
                 'info': market,
             });
         }
@@ -900,10 +900,9 @@ export default class woo extends Exchange {
             const rows = this.safeValue (data, 'rows', []);
             return this.parseOrder (rows[0], market);
         }
-        return this.extend (
-            this.parseOrder (response, market),
-            { 'type': type }
-        );
+        const order = this.parseOrder (response, market);
+        order['type'] = type;
+        return order;
     }
 
     async editOrder (id: string, symbol, type, side, amount = undefined, price = undefined, params = {}) {
