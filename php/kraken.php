@@ -37,9 +37,12 @@ class kraken extends Exchange {
                 'createStopOrder' => true,
                 'editOrder' => true,
                 'fetchBalance' => true,
+                'fetchBalanceExtended' => true,
                 'fetchBorrowInterest' => false,
+                'fetchBorrowRate' => false,
                 'fetchBorrowRateHistories' => false,
                 'fetchBorrowRateHistory' => false,
+                'fetchBorrowRates' => false,
                 'fetchClosedOrders' => true,
                 'fetchCrossBorrowRate' => false,
                 'fetchCrossBorrowRates' => false,
@@ -189,8 +192,6 @@ class kraken extends Exchange {
                         'Withdraw' => 3,
                         'WithdrawCancel' => 3,
                         'WithdrawInfo' => 3,
-                        'WithdrawMethods' => 3,
-                        'WithdrawAddresses' => 3,
                         'WithdrawStatus' => 3,
                         'WalletTransfer' => 3,
                         // sub accounts
@@ -320,91 +321,6 @@ class kraken extends Exchange {
                     'YFI' => 'YFI',
                     'ZEC' => 'Zcash (Transparent)',
                     'ZRX' => '0x (ZRX)',
-                ),
-                'withdrawMethods' => array(   // keeping it here because deposit and withdraw return different networks codes
-                    'Lightning' => 'Lightning',
-                    'Bitcoin' => 'BTC',
-                    'Ripple' => 'XRP',
-                    'Litecoin' => 'LTC',
-                    'Dogecoin' => 'DOGE',
-                    'Stellar' => 'XLM',
-                    'Ethereum' => 'ERC20',
-                    'Arbitrum One' => 'Arbitrum',
-                    'Polygon' => 'MATIC',
-                    'Arbitrum Nova' => 'Arbitrum',
-                    'Optimism' => 'Optimism',
-                    'zkSync Era' => 'zkSync',
-                    'Ethereum Classic' => 'ETC',
-                    'Zcash' => 'ZEC',
-                    'Monero' => 'XMR',
-                    'Tron' => 'TRC20',
-                    'Solana' => 'SOL',
-                    'EOS' => 'EOS',
-                    'Bitcoin Cash' => 'BCH',
-                    'Cardano' => 'ADA',
-                    'Qtum' => 'QTUM',
-                    'Tezos' => 'XTZ',
-                    'Cosmos' => 'ATOM',
-                    'Nano' => 'NANO',
-                    'Siacoin' => 'SC',
-                    'Lisk' => 'LSK',
-                    'Waves' => 'WAVES',
-                    'ICON' => 'ICX',
-                    'Algorand' => 'ALGO',
-                    'Polygon - USDC.e' => 'MATIC',
-                    'Arbitrum One - USDC.e' => 'Arbitrum',
-                    'Polkadot' => 'DOT',
-                    'Kava' => 'KAVA',
-                    'Filecoin' => 'FIL',
-                    'Kusama' => 'KSM',
-                    'Flow' => 'FLOW',
-                    'Energy Web' => 'EW',
-                    'Mina' => 'MINA',
-                    'Centrifuge' => 'CFG',
-                    'Karura' => 'KAR',
-                    'Moonriver' => 'MOVR',
-                    'Shiden' => 'SDN',
-                    'Khala' => 'PHA',
-                    'Bifrost Kusama' => 'BNC',
-                    'Songbird' => 'SGB',
-                    'Terra classic' => 'LUNC',
-                    'KILT' => 'KILT',
-                    'Basilisk' => 'BSX',
-                    'Flare' => 'FLR',
-                    'Avalanche C-Chain' => 'AVAX',
-                    'Kintsugi' => 'KINT',
-                    'Altair' => 'AIR',
-                    'Moonbeam' => 'GLMR',
-                    'Acala' => 'ACA',
-                    'Astar' => 'ASTR',
-                    'Akash' => 'AKT',
-                    'Robonomics' => 'XRT',
-                    'Fantom' => 'FTM',
-                    'Elrond' => 'EGLD',
-                    'THORchain' => 'RUNE',
-                    'Secret' => 'SCRT',
-                    'Near' => 'NEAR',
-                    'Internet Computer Protocol' => 'ICP',
-                    'Picasso' => 'PICA',
-                    'Crust Shadow' => 'CSM',
-                    'Integritee' => 'TEER',
-                    'Parallel Finance' => 'PARA',
-                    'HydraDX' => 'HDX',
-                    'Interlay' => 'INTR',
-                    'Fetch.ai' => 'FET',
-                    'NYM' => 'NYM',
-                    'Terra 2.0' => 'LUNA2',
-                    'Juno' => 'JUNO',
-                    'Nodle' => 'NODL',
-                    'Stacks' => 'STX',
-                    'Ethereum PoW' => 'ETHW',
-                    'Aptos' => 'APT',
-                    'Sui' => 'SUI',
-                    'Genshiro' => 'GENS',
-                    'Aventus' => 'AVT',
-                    'Sei' => 'SEI',
-                    'OriginTrail' => 'OTP',
-                    'Celestia' => 'TIA',
                 ),
             ),
             'precisionMode' => TICK_SIZE,
@@ -584,7 +500,7 @@ class kraken extends Exchange {
         return $result;
     }
 
-    public function safe_currency($currencyId, ?array $currency = null) {
+    public function safe_currency($currencyId, $currency = null) {
         if ($currencyId !== null) {
             if (strlen($currencyId) > 3) {
                 if ((mb_strpos($currencyId, 'X') === 0) || (mb_strpos($currencyId, 'Z') === 0)) {
@@ -807,7 +723,7 @@ class kraken extends Exchange {
         return $this->parse_order_book($orderbook, $symbol);
     }
 
-    public function parse_ticker($ticker, ?array $market = null): array {
+    public function parse_ticker(?array $ticker, $market = null): array {
         //
         //     {
         //         "a":["2432.77000","1","1.000"],
@@ -916,7 +832,7 @@ class kraken extends Exchange {
         return $this->parse_ticker($ticker, $market);
     }
 
-    public function parse_ohlcv($ohlcv, ?array $market = null): array {
+    public function parse_ohlcv($ohlcv, $market = null): array {
         //
         //     array(
         //         1591475640,
@@ -1000,7 +916,7 @@ class kraken extends Exchange {
         return $this->safe_string($types, $type, $type);
     }
 
-    public function parse_ledger_entry($item, ?array $currency = null) {
+    public function parse_ledger_entry($item, $currency = null) {
         //
         //     {
         //         'LTFK7F-N2CUX-PNY4SX' => array(
@@ -1133,7 +1049,7 @@ class kraken extends Exchange {
         return $items[0];
     }
 
-    public function parse_trade($trade, ?array $market = null): array {
+    public function parse_trade($trade, $market = null): array {
         //
         // fetchTrades (public)
         //
@@ -1261,7 +1177,7 @@ class kraken extends Exchange {
         if ($limit !== null && $limit !== 1000) {
             $fetchTradesWarning = $this->safe_value($this->options, 'fetchTradesWarning', true);
             if ($fetchTradesWarning) {
-                throw new ExchangeError($this->id . ' fetchTrades() cannot serve ' . (string) $limit . " $trades without breaking the pagination, see https://github.com/ccxt/ccxt/issues/5698 for more details. Set exchange.options['fetchTradesWarning'] to acknowledge this warning and silence it.");
+                throw new ExchangeError($this->id . ' fetchTrades() cannot serve ' . (string) $limit . " \$trades without breaking the pagination, see https://github.com/ccxt/ccxt/issues/5698 for more details. Set exchange.options['fetchTradesWarning'] to acknowledge this warning and silence it.");
             }
         }
         $response = $this->publicGetTrades (array_merge($request, $params));
@@ -1330,6 +1246,27 @@ class kraken extends Exchange {
         //                 "balance" => 1.2435,
         //                 "hold_trade" => 0.8423
         //             }
+        //         }
+        //     }
+        //
+        return $this->parse_balance($response);
+    }
+
+    public function fetch_balance_extended($params = array ()) {
+        /**
+         * query for balance and get the amount of funds available for trading or funds locked in orders
+         * @param {array} [$params] extra parameters specific to the kraken api endpoint
+         * @return {array} a ~@link https://docs.ccxt.com/en/latest/manual.html?#balance-structure balance structure~
+         */
+        $this->load_markets();
+        $response = $this->privatePostBalanceEx ($params);
+        //
+        //     {
+        //         "error":array(),
+        //         "result":{
+        //             "ZUSD":"58.8649",
+        //             "KFEE":"4399.43",
+        //             "XXBT":"0.0000034506",
         //         }
         //     }
         //
@@ -1430,7 +1367,7 @@ class kraken extends Exchange {
         return $this->safe_string($statuses, $status, $status);
     }
 
-    public function parse_order($order, ?array $market = null): array {
+    public function parse_order($order, $market = null): array {
         //
         // createOrder for regular orders
         //
@@ -2129,12 +2066,7 @@ class kraken extends Exchange {
         return $this->safe_string($statuses, $status, $status);
     }
 
-    public function parse_network($network) {
-        $withdrawMethods = $this->safe_value($this->options, 'withdrawMethods', array());
-        return $this->safe_string($withdrawMethods, $network, $network);
-    }
-
-    public function parse_transaction($transaction, ?array $currency = null): array {
+    public function parse_transaction($transaction, $currency = null): array {
         //
         // fetchDeposits
         //
@@ -2184,8 +2116,6 @@ class kraken extends Exchange {
         //         "fee" => "0.0050000000",
         //         "time" =>  1530481750,
         //         "status" => "Success"
-        //         "key":"Huobi wallet",
-        //         "network":"Tron"
         //         $status-prop => 'on-hold' // this field might not be present in some cases
         //     }
         //
@@ -2222,7 +2152,7 @@ class kraken extends Exchange {
             'id' => $id,
             'currency' => $code,
             'amount' => $amount,
-            'network' => $this->parse_network($this->safe_string($transaction, 'network')),
+            'network' => null,
             'address' => $address,
             'addressTo' => null,
             'addressFrom' => null,
@@ -2324,28 +2254,19 @@ class kraken extends Exchange {
          * @param {int} [$since] the earliest time in ms to fetch withdrawals for
          * @param {int} [$limit] the maximum number of withdrawals structures to retrieve
          * @param {array} [$params] extra parameters specific to the exchange API endpoint
-         * @param {array} [$params->end] End timestamp, withdrawals created strictly after will be not be included in the $response
-         * @param {boolean} [$params->paginate]  default false, when true will automatically $paginate by calling this endpoint multiple times
          * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=transaction-structure transaction structures~
-        */
+         */
+        // https://www.kraken.com/en-us/help/api#withdraw-status
+        if ($code === null) {
+            throw new ArgumentsRequired($this->id . ' fetchWithdrawals() requires a $currency $code argument');
+        }
         $this->load_markets();
-        $paginate = false;
-        list($paginate, $params) = $this->handle_option_and_params($params, 'fetchWithdrawals', 'paginate');
-        if ($paginate) {
-            $params['cursor'] = true;
-            return $this->fetch_paginated_call_cursor('fetchWithdrawals', $code, $since, $limit, $params, 'next_cursor', 'cursor');
-        }
-        $request = array();
-        if ($code !== null) {
-            $currency = $this->currency($code);
-            $request['asset'] = $currency['id'];
-        }
-        if ($since !== null) {
-            $request['since'] = (string) $since;
-        }
+        $currency = $this->currency($code);
+        $request = array(
+            'asset' => $currency['id'],
+        );
         $response = $this->privatePostWithdrawStatus (array_merge($request, $params));
         //
-        // with no pagination
         //     {  error => array(),
         //       "result" => array( { "method" => "Ether",
         //                     "aclass" => "currency",
@@ -2357,51 +2278,8 @@ class kraken extends Exchange {
         //                        "fee" => "0.0050000000",
         //                       "time" =>  1530481750,
         //                     "status" => "Success"                                                             } ) }
-        // with pagination
-        //    {
-        //        "error":array(),
-        //        "result":{
-        //           "withdrawals":array(
-        //              array(
-        //                 "method":"Tether USD (TRC20)",
-        //                 "aclass":"currency",
-        //                 "asset":"USDT",
-        //                 "refid":"BSNFZU2-MEFN4G-J3NEZV",
-        //                 "txid":"1c7a642fb7387bbc2c6a2c509fd1ae146937f4cf793b4079a4f0715e3a02615a",
-        //                 "info":"TQmdxSuC16EhFg8FZWtYgrfFRosoRF7bCp",
-        //                 "amount":"1996.50000000",
-        //                 "fee":"2.50000000",
-        //                 "time":1669126657,
-        //                 "status":"Success",
-        //                 "key":"poloniex",
-        //                 "network":"Tron"
-        //              ),
-        //             ...
-        //           ),
-        //           "next_cursor":"HgAAAAAAAABGVFRSd3k1LVF4Y0JQY05Gd0xRY0NxenFndHpybkwBAQH2AwEBAAAAAQAAAAAAAAABAAAAAAAZAAAAAAAAAA=="
-        //        }
-        //     }
         //
-        $rawWithdrawals = null;
-        $result = $this->safe_value($response, 'result');
-        if (gettype($result) !== 'array' || array_keys($result) !== array_keys(array_keys($result))) {
-            $rawWithdrawals = $this->add_pagination_cursor_to_result($result);
-        } else {
-            $rawWithdrawals = $result;
-        }
-        return $this->parse_transactions_by_type('withdrawal', $rawWithdrawals, $code, $since, $limit);
-    }
-
-    public function add_pagination_cursor_to_result($result) {
-        $cursor = $this->safe_string($result, 'next_cursor');
-        $data = $this->safe_value($result, 'withdrawals');
-        $dataLength = count($data);
-        if ($cursor !== null && $dataLength > 0) {
-            $last = $data[$dataLength - 1];
-            $last['next_cursor'] = $cursor;
-            $data[$dataLength - 1] = $last;
-        }
-        return $data;
+        return $this->parse_transactions_by_type('withdrawal', $response['result'], $code, $since, $limit);
     }
 
     public function create_deposit_address(string $code, $params = array ()) {
@@ -2519,7 +2397,7 @@ class kraken extends Exchange {
         return $this->parse_deposit_address($firstResult, $currency);
     }
 
-    public function parse_deposit_address($depositAddress, ?array $currency = null) {
+    public function parse_deposit_address($depositAddress, $currency = null) {
         //
         //     {
         //         "address":"0x77b5051f97efa9cc52c9ad5b023a53fc15c200d3",
@@ -2704,7 +2582,7 @@ class kraken extends Exchange {
         ));
     }
 
-    public function parse_transfer($transfer, ?array $currency = null) {
+    public function parse_transfer($transfer, $currency = null) {
         //
         // $transfer
         //
