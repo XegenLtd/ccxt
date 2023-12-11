@@ -54,7 +54,7 @@ class binance extends \ccxt\async\binance {
                 ),
                 'api' => array(
                     'ws' => array(
-                        'spot' => 'wss://stream.binance.com/ws',
+                        'spot' => 'wss://ws-api.binance.com:443/ws-api/v3',
                         'margin' => 'wss://stream.binance.com/ws',
                         'future' => 'wss://fstream.binance.com/ws',
                         'delivery' => 'wss://dstream.binance.com/ws',
