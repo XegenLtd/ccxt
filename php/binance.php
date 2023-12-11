@@ -1798,7 +1798,8 @@ class binance extends Exchange {
     }
 
     public function nonce() {
-        return $this->milliseconds() - $this->options['timeDifference'];
+        $diff = $this->options['timeDifference'];
+        return $this->milliseconds() - (int)$diff;
     }
 
     public function fetch_time($params = array ()) {
