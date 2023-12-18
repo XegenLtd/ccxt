@@ -2256,9 +2256,12 @@ class kraken extends Exchange {
          * @param {array} [$params] extra parameters specific to the exchange API endpoint
          * @return {array[]} a list of ~@link https://docs.ccxt.com/#/?id=transaction-structure transaction structures~
          */
-        // https://www.kraken.com/en-us/help/api#withdraw-status
-        if ($code === null) {
-            throw new ArgumentsRequired($this->id . ' fetchWithdrawals() requires a $currency $code argument');
+        $this->load_markets();
+        $paginate = false;
+        list($paginate, $params) = $this->handle_option_and_params($params, 'fetchWithdrawals', 'paginate');
+        if ($paginate) {
+            $params['cursor'] = true;
+            return $this->fetch_paginated_call_cursor('fetchWithdrawals', $code, $since, $limit, $params, 'next_cursor', 'cursor');
         }
         $this->load_markets();
         $currency = $this->currency($code);

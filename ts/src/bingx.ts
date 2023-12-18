@@ -6,7 +6,7 @@ import { AuthenticationError, ExchangeNotAvailable, PermissionDenied, ExchangeEr
 import { Precise } from './base/Precise.js';
 import { sha256 } from './static_dependencies/noble-hashes/sha256.js';
 import { DECIMAL_PLACES } from './base/functions/number.js';
-import { Int, OrderSide, OHLCV, FundingRateHistory, Order, OrderType, OrderRequest, Str, Trade, Balances, Transaction, Ticker, OrderBook, Tickers, Market, Strings, Currency, Position } from './base/types.js';
+import type { Int, OrderSide, OHLCV, FundingRateHistory, Order, OrderType, OrderRequest, Str, Trade, Balances, Transaction, Ticker, OrderBook, Tickers, Market, Strings, Currency, Position } from './base/types.js';
 
 //  ---------------------------------------------------------------------------
 
@@ -901,14 +901,19 @@ export default class bingx extends Exchange {
         const type = (cost === undefined) ? 'spot' : 'swap';
         const currencyId = this.safeString2 (trade, 'currency', 'N');
         const currencyCode = this.safeCurrencyCode (currencyId);
-        const m = this.safeValue (trade, 'm', false);
+        const m = this.safeValue (trade, 'm');
         const marketId = this.safeString (trade, 's');
         const isBuyerMaker = this.safeValue2 (trade, 'buyerMaker', 'isBuyerMaker');
-        let takeOrMaker = (isBuyerMaker || m) ? 'maker' : 'taker';
+        let takeOrMaker = undefined;
+        if ((isBuyerMaker !== undefined) || (m !== undefined)) {
+            takeOrMaker = (isBuyerMaker || m) ? 'maker' : 'taker';
+        }
         let side = this.safeStringLower2 (trade, 'side', 'S');
         if (side === undefined) {
-            side = (isBuyerMaker || m) ? 'sell' : 'buy';
-            takeOrMaker = 'taker';
+            if ((isBuyerMaker !== undefined) || (m !== undefined)) {
+                side = (isBuyerMaker || m) ? 'sell' : 'buy';
+                takeOrMaker = 'taker';
+            }
         }
         return this.safeTrade ({
             'id': this.safeStringN (trade, [ 'id', 't' ]),
@@ -921,7 +926,7 @@ export default class bingx extends Exchange {
             'side': this.parseOrderSide (side),
             'takerOrMaker': takeOrMaker,
             'price': this.safeString2 (trade, 'price', 'p'),
-            'amount': this.safeStringN (trade, [ 'qty', 'amount', 'q' ]),
+            'amount': this.safeStringN (trade, [ 'qty', 'volume', 'amount', 'q' ]),
             'cost': cost,
             'fee': {
                 'cost': this.parseNumber (Precise.stringAbs (this.safeString2 (trade, 'commission', 'n'))),
@@ -1364,7 +1369,7 @@ export default class bingx extends Exchange {
     async fetchBalance (params = {}): Promise<Balances> {
         /**
          * @method
-         * @name cryptocom#fetchBalance
+         * @name bingx#fetchBalance
          * @description query for balance and get the amount of funds available for trading or funds locked in orders
          * @see https://bingx-api.github.io/docs/#/spot/trade-api.html#Query%20Assets
          * @see https://bingx-api.github.io/docs/#/swapV2/account-api.html#Get%20Perpetual%20Swap%20Account%20Asset%20Information
@@ -1826,7 +1831,7 @@ export default class bingx extends Exchange {
          * @description create a list of trade orders
          * @see https://bingx-api.github.io/docs/#/spot/trade-api.html#Batch%20Placing%20Orders
          * @see https://bingx-api.github.io/docs/#/swapV2/trade-api.html#Bulk%20order
-         * @param {array} orders list of orders to create, each object should contain the parameters required by createOrder, namely symbol, type, side, amount, price and params
+         * @param {Array} orders list of orders to create, each object should contain the parameters required by createOrder, namely symbol, type, side, amount, price and params
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
          */
@@ -2023,6 +2028,9 @@ export default class bingx extends Exchange {
         const positionSide = this.safeString2 (order, 'positionSide', 'ps');
         const marketType = (positionSide === undefined) ? 'spot' : 'swap';
         const marketId = this.safeString2 (order, 'symbol', 's');
+        if (market === undefined) {
+            market = this.safeMarket (marketId, undefined, undefined, marketType);
+        }
         const symbol = this.safeSymbol (marketId, market, '-', marketType);
         const orderId = this.safeString2 (order, 'orderId', 'i');
         const side = this.safeStringLower2 (order, 'side', 'S');
@@ -2389,16 +2397,15 @@ export default class bingx extends Exchange {
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
          */
-        if (symbol === undefined) {
-            throw new ArgumentsRequired (this.id + ' fetchOrders() requires a symbol argument');
-        }
         await this.loadMarkets ();
-        const market = this.market (symbol);
-        const request = {
-            'symbol': market['id'],
-        };
+        let market = undefined;
+        const request = {};
+        if (symbol !== undefined) {
+            market = this.market (symbol);
+            request['symbol'] = market['id'];
+        }
         let response = undefined;
-        const [ marketType, query ] = this.handleMarketTypeAndParams ('fetchOrder', market, params);
+        const [ marketType, query ] = this.handleMarketTypeAndParams ('fetchOpenOrders', market, params);
         if (marketType === 'spot') {
             response = await this.spotV1PrivateGetTradeOpenOrders (this.extend (request, query));
         } else {
@@ -3402,7 +3409,7 @@ export default class bingx extends Exchange {
          * @see https://bitgetlimited.github.io/apidoc/en/mix/#close-all-position
          * @param {object} [params] extra parameters specific to the okx api endpoint
          * @param {string} [params.recvWindow] request valid time window value
-         * @returns {[object]} [A list of position structures]{@link https://docs.ccxt.com/#/?id=position-structure}
+         * @returns {object[]} [A list of position structures]{@link https://docs.ccxt.com/#/?id=position-structure}
          */
         await this.loadMarkets ();
         const defaultRecvWindow = this.safeInteger (this.options, 'recvWindow');
