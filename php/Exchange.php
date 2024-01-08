@@ -1386,13 +1386,7 @@ class Exchange {
                 curl_setopt($this->curl, CURLOPT_USERAGENT, $userAgent['User-Agent']);
                 $headers = array_merge($userAgent, $headers);
             }
-            curl_setopt($this->curl, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($this->curl, CURLOPT_ENCODING, '');
-            curl_setopt($this->curl, CURLOPT_MAXREDIRS, 10);
-            curl_setopt($this->curl, CURLOPT_TIMEOUT, 0);
-            curl_setopt($this->curl, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($this->curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-            //curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'GET');
+            //
         }
         // set final headers
         $headers = $this->set_headers($headers);
@@ -1411,6 +1405,9 @@ class Exchange {
             }
         }
 
+        curl_setopt($this->curl, CURLOPT_TIMEOUT, 0);
+        curl_setopt($this->curl, CURLOPT_MAXREDIRS, 10);
+
         if ($this->timeout) {
             curl_setopt($this->curl, CURLOPT_CONNECTTIMEOUT_MS, (int) ($this->timeout));
             curl_setopt($this->curl, CURLOPT_TIMEOUT_MS, (int) ($this->timeout));
@@ -1428,6 +1425,7 @@ class Exchange {
 
         if ($method == 'GET') {
             curl_setopt($this->curl, CURLOPT_HTTPGET, true);
+            curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'GET');
         } elseif ($method == 'POST') {
             curl_setopt($this->curl, CURLOPT_POST, true);
             curl_setopt($this->curl, CURLOPT_POSTFIELDS, $body);
