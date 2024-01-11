@@ -38,6 +38,8 @@ export default class bingx extends Exchange {
                 'createMarketSellOrderWithCost': true,
                 'createOrder': true,
                 'createOrders': true,
+                'createTrailingAmountOrder': true,
+                'createTrailingPercentOrder': true,
                 'fetchBalance': true,
                 'fetchClosedOrders': true,
                 'fetchCurrencies': true,
@@ -1915,17 +1917,6 @@ export default class bingx extends Exchange {
         return this.parseOrder (order, market);
     }
 
-    fixStringifiedJsonMembers (content) {
-        // when stringified json has members with their values also stringified, like:
-        // '{"code":0, "data":{"order":{"orderId":1742968678528512345,"symbol":"BTC-USDT", "takeProfit":"{\"type\":\"TAKE_PROFIT\",\"stopPrice\":43320.1}","reduceOnly":false}}}'
-        // we can fix with below manipulations
-        // @ts-ignore
-        let modifiedContent = content.replaceAll ('\\', '');
-        modifiedContent = modifiedContent.replaceAll ('"{', '{');
-        modifiedContent = modifiedContent.replaceAll ('}"', '}');
-        return modifiedContent;
-    }
-
     async createOrders (orders: OrderRequest[], params = {}) {
         /**
          * @method
@@ -2435,6 +2426,7 @@ export default class bingx extends Exchange {
             'symbol': market['id'],
         };
         const clientOrderIds = this.safeValue (params, 'clientOrderIds');
+        params = this.omit (params, 'clientOrderIds');
         let idsToParse = ids;
         const areClientOrderIds = (clientOrderIds !== undefined);
         if (areClientOrderIds) {
@@ -2452,8 +2444,11 @@ export default class bingx extends Exchange {
             request[spotReqKey] = parsedIds.join (',');
             response = await this.spotV1PrivatePostTradeCancelOrders (this.extend (request, params));
         } else {
-            const swapReqKey = areClientOrderIds ? 'ClientOrderIDList' : 'orderIdList';
-            request[swapReqKey] = parsedIds;
+            if (areClientOrderIds) {
+                request['clientOrderIDList'] = this.json (parsedIds);
+            } else {
+                request['orderIdList'] = parsedIds;
+            }
             response = await this.swapV2PrivateDeleteTradeBatchOrders (this.extend (request, params));
         }
         //

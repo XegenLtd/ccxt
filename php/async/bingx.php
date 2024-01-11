@@ -45,6 +45,8 @@ class bingx extends Exchange {
                 'createMarketSellOrderWithCost' => true,
                 'createOrder' => true,
                 'createOrders' => true,
+                'createTrailingAmountOrder' => true,
+                'createTrailingPercentOrder' => true,
                 'fetchBalance' => true,
                 'fetchClosedOrders' => true,
                 'fetchCurrencies' => true,
@@ -1923,17 +1925,6 @@ class bingx extends Exchange {
         }) ();
     }
 
-    public function fix_stringified_json_members($content) {
-        // when stringified json has members with their values also stringified, like:
-        // 'array("code":0, "data":array("order":array("orderId":1742968678528512345,"symbol":"BTC-USDT", "takeProfit":"array(\"type\":\"TAKE_PROFIT\",\"stopPrice\":43320.1)","reduceOnly":false)))'
-        // we can fix with below manipulations
-        // @ts-ignore
-        $modifiedContent = str_replace('\\', '', $content);
-        $modifiedContent = str_replace('"array(', 'array(', $modifiedContent);
-        $modifiedContent = str_replace(', $modifiedContent)"', ')');
-        return $modifiedContent;
-    }
-
     public function create_orders(array $orders, $params = array ()) {
         return Async\async(function () use ($orders, $params) {
             /**
@@ -2442,6 +2433,7 @@ class bingx extends Exchange {
                 'symbol' => $market['id'],
             );
             $clientOrderIds = $this->safe_value($params, 'clientOrderIds');
+            $params = $this->omit($params, 'clientOrderIds');
             $idsToParse = $ids;
             $areClientOrderIds = ($clientOrderIds !== null);
             if ($areClientOrderIds) {
@@ -2459,8 +2451,11 @@ class bingx extends Exchange {
                 $request[$spotReqKey] = implode(',', $parsedIds);
                 $response = Async\await($this->spotV1PrivatePostTradeCancelOrders (array_merge($request, $params)));
             } else {
-                $swapReqKey = $areClientOrderIds ? 'ClientOrderIDList' : 'orderIdList';
-                $request[$swapReqKey] = $parsedIds;
+                if ($areClientOrderIds) {
+                    $request['clientOrderIDList'] = $this->json($parsedIds);
+                } else {
+                    $request['orderIdList'] = $parsedIds;
+                }
                 $response = Async\await($this->swapV2PrivateDeleteTradeBatchOrders (array_merge($request, $params)));
             }
             //

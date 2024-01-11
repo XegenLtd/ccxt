@@ -54,6 +54,8 @@ class bingx(Exchange, ImplicitAPI):
                 'createMarketSellOrderWithCost': True,
                 'createOrder': True,
                 'createOrders': True,
+                'createTrailingAmountOrder': True,
+                'createTrailingPercentOrder': True,
                 'fetchBalance': True,
                 'fetchClosedOrders': True,
                 'fetchCurrencies': True,
@@ -1804,16 +1806,6 @@ class bingx(Exchange, ImplicitAPI):
         order = self.safe_value(data, 'order', data)
         return self.parse_order(order, market)
 
-    def fix_stringified_json_members(self, content):
-        # when stringified json has members with their values also stringified, like:
-        # '{"code":0, "data":{"order":{"orderId":1742968678528512345,"symbol":"BTC-USDT", "takeProfit":"{\"type\":\"TAKE_PROFIT\",\"stopPrice\":43320.1}","reduceOnly":false}}}'
-        # we can fix with below manipulations
-        # @ts-ignore
-        modifiedContent = content.replace('\\', '')
-        modifiedContent = modifiedContent.replace('"{', '{')
-        modifiedContent = modifiedContent.replace('}"', '}')
-        return modifiedContent
-
     async def create_orders(self, orders: List[OrderRequest], params={}):
         """
         create a list of trade orders
@@ -2289,6 +2281,7 @@ class bingx(Exchange, ImplicitAPI):
             'symbol': market['id'],
         }
         clientOrderIds = self.safe_value(params, 'clientOrderIds')
+        params = self.omit(params, 'clientOrderIds')
         idsToParse = ids
         areClientOrderIds = (clientOrderIds is not None)
         if areClientOrderIds:
@@ -2304,8 +2297,10 @@ class bingx(Exchange, ImplicitAPI):
             request[spotReqKey] = ','.join(parsedIds)
             response = await self.spotV1PrivatePostTradeCancelOrders(self.extend(request, params))
         else:
-            swapReqKey = 'ClientOrderIDList' if areClientOrderIds else 'orderIdList'
-            request[swapReqKey] = parsedIds
+            if areClientOrderIds:
+                request['clientOrderIDList'] = self.json(parsedIds)
+            else:
+                request['orderIdList'] = parsedIds
             response = await self.swapV2PrivateDeleteTradeBatchOrders(self.extend(request, params))
         #
         #    {
