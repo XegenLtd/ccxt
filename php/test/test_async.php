@@ -616,6 +616,7 @@ class testMainClass extends baseMainTestClass {
                 'fetchCurrencies' => [],
                 'fetchTicker' => [$symbol],
                 'fetchTickers' => [$symbol],
+                'fetchLastPrices' => [$symbol],
                 'fetchOHLCV' => [$symbol],
                 'fetchTrades' => [$symbol],
                 'fetchOrderBook' => [$symbol],
@@ -1264,6 +1265,10 @@ class testMainClass extends baseMainTestClass {
             'uid' => 'uid',
             'accounts' => [array(
     'id' => 'myAccount',
+    'code' => 'USDT',
+), array(
+    'id' => 'myAccount',
+    'code' => 'USDC',
 )],
             'options' => array(
                 'enableUnifiedAccount' => true,
@@ -1290,6 +1295,10 @@ class testMainClass extends baseMainTestClass {
                     $result = $results[$j];
                     $description = $exchange->safe_value($result, 'description');
                     if (($test_name !== null) && ($test_name !== $description)) {
+                        continue;
+                    }
+                    $is_disabled = $exchange->safe_value($result, 'disabled', false);
+                    if ($is_disabled) {
                         continue;
                     }
                     $type = $exchange->safe_string($exchange_data, 'outputType');
@@ -1403,7 +1412,7 @@ class testMainClass extends baseMainTestClass {
         //  --- Init of brokerId tests functions-----------------------------------------
         //  -----------------------------------------------------------------------------
         return Async\async(function () {
-            $promises = [$this->test_binance(), $this->test_okx(), $this->test_cryptocom(), $this->test_bybit(), $this->test_kucoin(), $this->test_kucoinfutures(), $this->test_bitget(), $this->test_mexc(), $this->test_huobi(), $this->test_woo(), $this->test_bitmart(), $this->test_coinex(), $this->test_bingx(), $this->test_phemex()];
+            $promises = [$this->test_binance(), $this->test_okx(), $this->test_cryptocom(), $this->test_bybit(), $this->test_kucoin(), $this->test_kucoinfutures(), $this->test_bitget(), $this->test_mexc(), $this->test_htx(), $this->test_woo(), $this->test_bitmart(), $this->test_coinex(), $this->test_bingx(), $this->test_phemex()];
             Async\await(Promise\all($promises));
             $success_message = '[' . $this->lang . '][TEST_SUCCESS] brokerId tests passed.';
             dump('[INFO]' . $success_message);
@@ -1571,9 +1580,9 @@ class testMainClass extends baseMainTestClass {
         }) ();
     }
 
-    public function test_huobi() {
+    public function test_htx() {
         return Async\async(function () {
-            $exchange = $this->init_offline_exchange('huobi');
+            $exchange = $this->init_offline_exchange('htx');
             // spot test
             $id = 'AA03022abc';
             $spot_order_request = null;
@@ -1687,7 +1696,7 @@ class testMainClass extends baseMainTestClass {
     public function test_phemex() {
         return Async\async(function () {
             $exchange = $this->init_offline_exchange('phemex');
-            $id = 'CCXT';
+            $id = 'CCXT123456';
             $request = null;
             try {
                 Async\await($exchange->create_order('BTC/USDT', 'limit', 'buy', 1, 20000));

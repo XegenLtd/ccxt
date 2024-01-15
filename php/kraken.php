@@ -1173,12 +1173,8 @@ class kraken extends Exchange {
             $request['since'] = $since * 1e6;
             $request['since'] = (string) $since . '000000'; // expected to be in nanoseconds
         }
-        // https://github.com/ccxt/ccxt/issues/5698
-        if ($limit !== null && $limit !== 1000) {
-            $fetchTradesWarning = $this->safe_value($this->options, 'fetchTradesWarning', true);
-            if ($fetchTradesWarning) {
-                throw new ExchangeError($this->id . ' fetchTrades() cannot serve ' . (string) $limit . " \$trades without breaking the pagination, see https://github.com/ccxt/ccxt/issues/5698 for more details. Set exchange.options['fetchTradesWarning'] to acknowledge this warning and silence it.");
-            }
+        if ($limit !== null) {
+            $request['count'] = $limit;
         }
         $response = $this->publicGetTrades (array_merge($request, $params));
         //
@@ -1552,25 +1548,35 @@ class kraken extends Exchange {
         $trailingAmount = $this->safe_string($params, 'trailingAmount');
         $trailingLimitAmount = $this->safe_string($params, 'trailingLimitAmount');
         $isTrailingAmountOrder = $trailingAmount !== null;
-        if (($type === 'limit') && !$isTrailingAmountOrder) {
+        $isLimitOrder = str_ends_with($type, 'limit'); // supporting limit, stop-loss-limit, take-profit-limit, etc
+        if ($isLimitOrder && !$isTrailingAmountOrder) {
             $request['price'] = $this->price_to_precision($symbol, $price);
         }
         $reduceOnly = $this->safe_value_2($params, 'reduceOnly', 'reduce_only');
         if ($isStopLossOrTakeProfitTrigger) {
             if ($isStopLossTriggerOrder) {
                 $request['price'] = $this->price_to_precision($symbol, $stopLossTriggerPrice);
-                $request['ordertype'] = 'stop-loss-limit';
+                if ($isLimitOrder) {
+                    $request['ordertype'] = 'stop-loss-limit';
+                } else {
+                    $request['ordertype'] = 'stop-loss';
+                }
             } elseif ($isTakeProfitTriggerOrder) {
                 $request['price'] = $this->price_to_precision($symbol, $takeProfitTriggerPrice);
-                $request['ordertype'] = 'take-profit-limit';
+                if ($isLimitOrder) {
+                    $request['ordertype'] = 'take-profit-limit';
+                } else {
+                    $request['ordertype'] = 'take-profit';
+                }
             }
-            $request['price2'] = $this->price_to_precision($symbol, $price);
-            $reduceOnly = true;
+            if ($isLimitOrder) {
+                $request['price2'] = $this->price_to_precision($symbol, $price);
+            }
         } elseif ($isTrailingAmountOrder) {
             $trailingActivationPriceType = $this->safe_string($params, 'trigger', 'last');
             $trailingAmountString = '+' . $trailingAmount;
             $request['trigger'] = $trailingActivationPriceType;
-            if (($type === 'limit') || ($trailingLimitAmount !== null)) {
+            if ($isLimitOrder || ($trailingLimitAmount !== null)) {
                 $offset = $this->safe_string($params, 'offset', '-');
                 $trailingLimitAmountString = $offset . $this->number_to_string($trailingLimitAmount);
                 $request['price'] = $trailingAmountString;

@@ -38,8 +38,8 @@ class kraken extends kraken$1 {
                 'createOrder': true,
                 'createStopLimitOrder': true,
                 'createStopMarketOrder': true,
-                'createTrailingAmountOrder': true,
                 'createStopOrder': true,
+                'createTrailingAmountOrder': true,
                 'editOrder': true,
                 'fetchBalance': true,
                 'fetchBorrowInterest': false,
@@ -1264,12 +1264,8 @@ class kraken extends kraken$1 {
             request['since'] = since * 1e6;
             request['since'] = since.toString() + '000000'; // expected to be in nanoseconds
         }
-        // https://github.com/ccxt/ccxt/issues/5698
-        if (limit !== undefined && limit !== 1000) {
-            const fetchTradesWarning = this.safeValue(this.options, 'fetchTradesWarning', true);
-            if (fetchTradesWarning) {
-                throw new errors.ExchangeError(this.id + ' fetchTrades() cannot serve ' + limit.toString() + " trades without breaking the pagination, see https://github.com/ccxt/ccxt/issues/5698 for more details. Set exchange.options['fetchTradesWarning'] to acknowledge this warning and silence it.");
-            }
+        if (limit !== undefined) {
+            request['count'] = limit;
         }
         const response = await this.publicGetTrades(this.extend(request, params));
         //
@@ -1624,27 +1620,39 @@ class kraken extends kraken$1 {
         const trailingAmount = this.safeString(params, 'trailingAmount');
         const trailingLimitAmount = this.safeString(params, 'trailingLimitAmount');
         const isTrailingAmountOrder = trailingAmount !== undefined;
-        if ((type === 'limit') && !isTrailingAmountOrder) {
+        const isLimitOrder = type.endsWith('limit'); // supporting limit, stop-loss-limit, take-profit-limit, etc
+        if (isLimitOrder && !isTrailingAmountOrder) {
             request['price'] = this.priceToPrecision(symbol, price);
         }
-        let reduceOnly = this.safeValue2(params, 'reduceOnly', 'reduce_only');
+        const reduceOnly = this.safeValue2(params, 'reduceOnly', 'reduce_only');
         if (isStopLossOrTakeProfitTrigger) {
             if (isStopLossTriggerOrder) {
                 request['price'] = this.priceToPrecision(symbol, stopLossTriggerPrice);
-                request['ordertype'] = 'stop-loss-limit';
+                if (isLimitOrder) {
+                    request['ordertype'] = 'stop-loss-limit';
+                }
+                else {
+                    request['ordertype'] = 'stop-loss';
+                }
             }
             else if (isTakeProfitTriggerOrder) {
                 request['price'] = this.priceToPrecision(symbol, takeProfitTriggerPrice);
-                request['ordertype'] = 'take-profit-limit';
+                if (isLimitOrder) {
+                    request['ordertype'] = 'take-profit-limit';
+                }
+                else {
+                    request['ordertype'] = 'take-profit';
+                }
             }
-            request['price2'] = this.priceToPrecision(symbol, price);
-            reduceOnly = true;
+            if (isLimitOrder) {
+                request['price2'] = this.priceToPrecision(symbol, price);
+            }
         }
         else if (isTrailingAmountOrder) {
             const trailingActivationPriceType = this.safeString(params, 'trigger', 'last');
             const trailingAmountString = '+' + trailingAmount;
             request['trigger'] = trailingActivationPriceType;
-            if ((type === 'limit') || (trailingLimitAmount !== undefined)) {
+            if (isLimitOrder || (trailingLimitAmount !== undefined)) {
                 const offset = this.safeString(params, 'offset', '-');
                 const trailingLimitAmountString = offset + this.numberToString(trailingLimitAmount);
                 request['price'] = trailingAmountString;
