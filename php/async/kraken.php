@@ -1622,16 +1622,7 @@ class kraken extends Exchange {
                 $trades[] = $rawTrade;
             }
         }
-        $stopPrice = $this->omit_zero($this->safe_string($order, 'stopprice', $stopPrice));
-        $stopLossPrice = null;
-        $takeProfitPrice = null;
-        if (str_starts_with($type, 'take-profit')) {
-            $takeProfitPrice = $this->safe_string($description, 'price');
-            $price = $this->omit_zero($this->safe_string($description, 'price2'));
-        } elseif (str_starts_with($type, 'stop-loss')) {
-            $stopLossPrice = $this->safe_string($description, 'price');
-            $price = $this->omit_zero($this->safe_string($description, 'price2'));
-        }
+        $stopPrice = $this->safe_number($order, 'stopprice', $stopPrice);
         return $this->safe_order(array(
             'id' => $id,
             'clientOrderId' => $clientOrderId,
@@ -1641,15 +1632,13 @@ class kraken extends Exchange {
             'lastTradeTimestamp' => null,
             'status' => $status,
             'symbol' => $symbol,
-            'type' => $this->parse_order_type($type),
+            'type' => $type,
             'timeInForce' => null,
             'postOnly' => $isPostOnly,
             'side' => $side,
             'price' => $price,
             'stopPrice' => $stopPrice,
             'triggerPrice' => $stopPrice,
-            'takeProfitPrice' => $takeProfitPrice,
-            'stopLossPrice' => $stopLossPrice,
             'cost' => null,
             'amount' => $amount,
             'filled' => $filled,
@@ -2863,9 +2852,9 @@ class kraken extends Exchange {
             $nonce = (string) $this->nonce();
             // urlencodeNested is used to address https://github.com/ccxt/ccxt/issues/12872
             if ($isCancelOrderBatch) {
-                $body = $this->json(array_merge(array( 'nonce' => (string) $nonce ), $params));
+                $body = $this->json(array_merge(array( 'nonce' => $nonce ), $params));
             } else {
-                $body = $this->urlencode_nested(array_merge(array( 'nonce' => (string) $nonce ), $params));
+                $body = $this->urlencode_nested(array_merge(array( 'nonce' => $nonce ), $params));
             }
             $auth = $this->encode($nonce . $body);
             $hash = $this->hash($auth, 'sha256', 'binary');
