@@ -17,6 +17,7 @@ from ccxt.base.errors import BadRequest
 from ccxt.base.errors import BadSymbol
 from ccxt.base.errors import InsufficientFunds
 from ccxt.base.errors import OrderNotFound
+from ccxt.base.errors import NotSupported
 from ccxt.base.errors import DDoSProtection
 from ccxt.base.errors import ExchangeNotAvailable
 from ccxt.base.errors import AuthenticationError
@@ -39,7 +40,7 @@ class bingx(Exchange, ImplicitAPI):
             'has': {
                 'CORS': None,
                 'spot': True,
-                'margin': True,
+                'margin': False,
                 'swap': True,
                 'future': False,
                 'option': False,
@@ -101,6 +102,9 @@ class bingx(Exchange, ImplicitAPI):
                     'subAccount': 'https://open-api.{hostname}/openApi',
                     'account': 'https://open-api.{hostname}/openApi',
                     'copyTrading': 'https://open-api.{hostname}/openApi',
+                },
+                'test': {
+                    'swap': 'https://open-api-vst.{hostname}/openApi',  # only swap is really "test" but since the API keys are the same, we want to keep all the functionalities when the user enables the sandboxmode
                 },
                 'www': 'https://bingx.com/',
                 'doc': 'https://bingx-api.github.io/docs/',
@@ -378,6 +382,7 @@ class bingx(Exchange, ImplicitAPI):
                     '80016': OrderNotFound,
                     '80017': OrderNotFound,
                     '100414': AccountSuspended,  # {"code":100414,"msg":"Code: 100414, Msg: risk control check fail,code(1)","debugMsg":""}
+                    '100419': PermissionDenied,  # {"code":100419,"msg":"IP does not match IP whitelist","success":false,"timestamp":1705274099347}
                     '100437': BadRequest,  # {"code":100437,"msg":"The withdrawal amount is lower than the minimum limit, please re-enter.","timestamp":1689258588845}
                 },
                 'broad': {},
@@ -429,6 +434,9 @@ class bingx(Exchange, ImplicitAPI):
         :returns dict: an associative dictionary of currencies
         """
         if not self.check_required_credentials(False):
+            return None
+        isSandbox = self.safe_value(self.options, 'sandboxMode', False)
+        if isSandbox:
             return None
         response = self.walletsV1PrivateGetCapitalConfigGetall(params)
         #
@@ -661,7 +669,10 @@ class bingx(Exchange, ImplicitAPI):
         :param dict [params]: extra parameters specific to the exchange API endpoint
         :returns dict[]: an array of objects representing market data
         """
-        requests = [self.fetch_spot_markets(params), self.fetch_swap_markets(params)]
+        requests = [self.fetch_swap_markets(params)]
+        isSandbox = self.safe_value(self.options, 'sandboxMode', False)
+        if not isSandbox:
+            requests.append(self.fetch_spot_markets(params))  # sandbox is swap only
         promises = requests
         spotMarkets = self.safe_value(promises, 0, [])
         swapMarkets = self.safe_value(promises, 1, [])
@@ -2906,6 +2917,21 @@ class bingx(Exchange, ImplicitAPI):
         #        "txId": "0xb5ef8c13b968a406cc62a93a8bd80f9e9a906ef1b3fcf20a2e48573c17659268"
         #    }
         #
+        # withdraw
+        #
+        #     {
+        #         "code":0,
+        #         "timestamp":1705274263621,
+        #         "data":{
+        #             "id":"1264246141278773252"
+        #         }
+        #     }
+        #
+        # parse withdraw-type output first...
+        #
+        data = self.safe_value(transaction, 'data')
+        dataId = None if (data is None) else self.safe_string(data, 'id')
+        id = self.safe_string(transaction, 'id', dataId)
         address = self.safe_string(transaction, 'address')
         tag = self.safe_string(transaction, 'addressTag')
         timestamp = self.safe_integer(transaction, 'insertTime')
@@ -2923,7 +2949,7 @@ class bingx(Exchange, ImplicitAPI):
         type = 'deposit' if (rawType == '0') else 'withdrawal'
         return {
             'info': transaction,
-            'id': self.safe_string(transaction, 'id'),
+            'id': id,
             'txid': self.safe_string(transaction, 'txId'),
             'type': type,
             'currency': code,
@@ -3504,6 +3530,9 @@ class bingx(Exchange, ImplicitAPI):
         type = section[0]
         version = section[1]
         access = section[2]
+        isSandbox = self.safe_value(self.options, 'sandboxMode', False)
+        if isSandbox and (type != 'swap'):
+            raise NotSupported(self.id + ' does not have a testnet/sandbox URL for ' + type + ' endpoints')
         url = self.implode_hostname(self.urls['api'][type])
         if type == 'spot' and version == 'v3':
             url += '/api'
@@ -3538,6 +3567,10 @@ class bingx(Exchange, ImplicitAPI):
 
     def nonce(self):
         return self.milliseconds()
+
+    def set_sandbox_mode(self, enable):
+        super(bingx, self).set_sandbox_mode(enable)
+        self.options['sandboxMode'] = enable
 
     def handle_errors(self, httpCode, reason, url, method, headers, body, response, requestHeaders, requestBody):
         if response is None:
