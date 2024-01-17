@@ -2863,9 +2863,9 @@ class kraken extends Exchange {
             $nonce = (string) $this->nonce();
             // urlencodeNested is used to address https://github.com/ccxt/ccxt/issues/12872
             if ($isCancelOrderBatch) {
-                $body = $this->json(array_merge(array( 'nonce' => $nonce ), $params));
+                $body = $this->json(array_merge(array( 'nonce' => (string) $nonce ), $params));
             } else {
-                $body = $this->urlencode_nested(array_merge(array( 'nonce' => $nonce ), $params));
+                $body = $this->urlencode_nested(array_merge(array( 'nonce' => (string) $nonce ), $params));
             }
             $auth = $this->encode($nonce . $body);
             $hash = $this->hash($auth, 'sha256', 'binary');
