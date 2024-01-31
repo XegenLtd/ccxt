@@ -409,6 +409,24 @@
               }
             ],
             "output": "{\"instId\":\"ADA-USDT-SWAP\",\"ordId\":\"641788883193122816\",\"newSlTriggerPx\":\"0.15\",\"newSlOrdPx\":\"0.14\",\"newSlTriggerPxType\":\"last\",\"newSz\":\"50\",\"newPx\":\"0.2\",\"stopLoss\":{\"triggerPrice\":0.15,\"price\":0.14}}"
+          },
+          {
+            "description": "Swap edit an algo order",
+            "method": "editOrder",
+            "url": "https://www.okx.com/api/v5/trade/amend-algos",
+            "input": [
+              "670963589699682304",
+              "BTC/USDT:USDT",
+              "conditional",
+              "buy",
+              1,
+              null,
+              {
+                "stopLossPrice": 62000,
+                "newSlOrdPx": 33000
+              }
+            ],
+            "output": "{\"instId\":\"BTC-USDT-SWAP\",\"algoId\":\"670963589699682304\",\"newSlTriggerPx\":\"62000\",\"newSlOrdPx\":33000,\"newSlTriggerPxType\":\"last\",\"newSz\":\"1\",\"stopLossPrice\":62000}"
           }
         ],
         "fetchOrder": [
@@ -1021,6 +1039,38 @@
               }
             ],
             "output": "[{\"instId\":\"LTC-USDT-SWAP\",\"side\":\"buy\",\"ordType\":\"limit\",\"sz\":\"1\",\"tdMode\":\"cross\",\"px\":\"60\",\"slTriggerPx\":\"50\",\"slOrdPx\":\"-1\",\"slTriggerPxType\":\"last\",\"tpTriggerPx\":\"70\",\"tpOrdPx\":\"-1\",\"tpTriggerPxType\":\"last\",\"clOrdId\":\"e847386590ce4dBCdb76299fc4b696da\",\"tag\":\"e847386590ce4dBC\",\"posSide\":\"long\"}]"
+          }
+        ],
+        "fetchOrderBook": [
+          {
+            "description": "spot orderbook",
+            "method": "fetchOrderBook",
+            "url": "https://www.okx.com/api/v5/market/books?instId=BTC-USDT&sz=5",
+            "input": [
+              "BTC/USDT",
+              5
+            ]
+          },
+          {
+            "description": "Swap orderbook",
+            "method": "fetchOrderBook",
+            "url": "https://www.okx.com/api/v5/market/books?instId=BTC-USDT-SWAP&sz=5",
+            "input": [
+              "BTC/USDT:USDT",
+              5
+            ]
+          },
+          {
+            "description": "fetch full spot orderbook",
+            "method": "fetchOrderBook",
+            "url": "https://www.okx.com/api/v5/market/books-full?instId=BTC-USDT&sz=5000",
+            "input": [
+              "BTC/USDT",
+              null,
+              {
+                "method": "publicGetMarketBooksFull"
+              }
+            ]
           }
         ]
     }

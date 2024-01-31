@@ -4,7 +4,7 @@
 
 # -----------------------------------------------------------------------------
 
-__version__ = '4.2.18'
+__version__ = '4.2.29'
 
 # -----------------------------------------------------------------------------
 
@@ -873,11 +873,15 @@ class Exchange(object):
         return value if value is not None else default_value
 
     @staticmethod
-    def get_object_value_from_key_list(dictionary, key_list):
-        filtered_list = list(filter(lambda el: el in dictionary and dictionary[el] != '' and dictionary[el] is not None, key_list))
-        if (len(filtered_list) == 0):
-            return None
-        return dictionary[filtered_list[0]]
+    def get_object_value_from_key_list(dictionary_or_list, key_list):
+        for key in key_list:
+            if isinstance(key, str):
+                if key in dictionary_or_list and dictionary_or_list[key] is not None and dictionary_or_list[key] != '':
+                    return dictionary_or_list[key]
+            else:
+                if (key < len(dictionary_or_list)) and (dictionary_or_list[key] is not None) and (dictionary_or_list[key] != ''):
+                    return dictionary_or_list[key]
+        return None
 
     @staticmethod
     def safe_either(method, dictionary, key1, key2, default_value=None):
@@ -1733,6 +1737,87 @@ class Exchange(object):
     # ########################################################################
 
     # METHODS BELOW THIS LINE ARE TRANSPILED FROM JAVASCRIPT TO PYTHON AND PHP
+
+    def safe_bool_n(self, dictionaryOrList, keys: List[IndexType], defaultValue: bool = None):
+        """
+         * @ignore
+        safely extract boolean value from dictionary or list
+        :returns bool | None:
+        """
+        value = self.safe_value_n(dictionaryOrList, keys, defaultValue)
+        if isinstance(value, bool):
+            return value
+        return defaultValue
+
+    def safe_bool_2(self, dictionary, key1: IndexType, key2: IndexType, defaultValue: bool = None):
+        """
+         * @ignore
+        safely extract boolean value from dictionary or list
+        :returns bool | None:
+        """
+        return self.safe_bool_n(dictionary, [key1, key2], defaultValue)
+
+    def safe_bool(self, dictionary, key: IndexType, defaultValue: bool = None):
+        """
+         * @ignore
+        safely extract boolean value from dictionary or list
+        :returns bool | None:
+        """
+        return self.safe_bool_n(dictionary, [key], defaultValue)
+
+    def safe_dict_n(self, dictionaryOrList, keys: List[IndexType], defaultValue: dict = None):
+        """
+         * @ignore
+        safely extract a dictionary from dictionary or list
+        :returns dict | None:
+        """
+        value = self.safe_value_n(dictionaryOrList, keys, defaultValue)
+        if isinstance(value, dict):
+            return value
+        return defaultValue
+
+    def safe_dict(self, dictionary, key: IndexType, defaultValue: dict = None):
+        """
+         * @ignore
+        safely extract a dictionary from dictionary or list
+        :returns dict | None:
+        """
+        return self.safe_dict_n(dictionary, [key], defaultValue)
+
+    def safe_dict_2(self, dictionary, key1: IndexType, key2: str, defaultValue: dict = None):
+        """
+         * @ignore
+        safely extract a dictionary from dictionary or list
+        :returns dict | None:
+        """
+        return self.safe_dict_n(dictionary, [key1, key2], defaultValue)
+
+    def safe_list_n(self, dictionaryOrList, keys: List[IndexType], defaultValue: List[Any] = None):
+        """
+         * @ignore
+        safely extract an Array from dictionary or list
+        :returns Array | None:
+        """
+        value = self.safe_value_n(dictionaryOrList, keys, defaultValue)
+        if isinstance(value, list):
+            return value
+        return defaultValue
+
+    def safe_list_2(self, dictionaryOrList, key1: IndexType, key2: str, defaultValue: List[Any] = None):
+        """
+         * @ignore
+        safely extract an Array from dictionary or list
+        :returns Array | None:
+        """
+        return self.safe_list_n(dictionaryOrList, [key1, key2], defaultValue)
+
+    def safe_list(self, dictionaryOrList, key: IndexType, defaultValue: List[Any] = None):
+        """
+         * @ignore
+        safely extract an Array from dictionary or list
+        :returns Array | None:
+        """
+        return self.safe_list_n(dictionaryOrList, [key], defaultValue)
 
     def handle_deltas(self, orderbook, deltas):
         for i in range(0, len(deltas)):
@@ -2902,6 +2987,12 @@ class Exchange(object):
             message = '. If you want to build OHLCV candles from trade executions data, visit https://github.com/ccxt/ccxt/tree/master/examples/ and see "build-ohlcv-bars" file'
         raise NotSupported(self.id + ' fetchOHLCV() is not supported yet' + message)
 
+    def fetch_ohlcv_ws(self, symbol: str, timeframe='1m', since: Int = None, limit: Int = None, params={}):
+        message = ''
+        if self.has['fetchTradesWs']:
+            message = '. If you want to build OHLCV candles from trade executions data, visit https://github.com/ccxt/ccxt/tree/master/examples/ and see "build-ohlcv-bars" file'
+        raise NotSupported(self.id + ' fetchOHLCVWs() is not supported yet. Try using fetchOHLCV instead.' + message)
+
     def watch_ohlcv(self, symbol: str, timeframe='1m', since: Int = None, limit: Int = None, params={}):
         raise NotSupported(self.id + ' watchOHLCV() is not supported yet')
 
@@ -3198,7 +3289,7 @@ class Exchange(object):
         for i in range(0, len(response)):
             item = response[i]
             id = self.safe_string(item, marketIdKey)
-            market = self.safe_market(id, None, None, self.safe_string(self.options, 'defaultType'))
+            market = self.safe_market(id, None, None, 'swap')
             symbol = market['symbol']
             contract = self.safe_value(market, 'contract', False)
             if contract and ((symbols is None) or self.in_array(symbol, symbols)):
@@ -3997,6 +4088,8 @@ class Exchange(object):
         return self.cancelOrder(self.safe_value(order, 'id'), self.safe_value(order, 'symbol'), params)
 
     def fetch_orders(self, symbol: str = None, since: Int = None, limit: Int = None, params={}):
+        if self.has['fetchOpenOrders'] and self.has['fetchClosedOrders']:
+            raise NotSupported(self.id + ' fetchOrders() is not supported yet, consider using fetchOpenOrders() and fetchClosedOrders() instead')
         raise NotSupported(self.id + ' fetchOrders() is not supported yet')
 
     def fetch_orders_ws(self, symbol: str = None, since: Int = None, limit: Int = None, params={}):
@@ -4026,6 +4119,9 @@ class Exchange(object):
             return self.filter_by(orders, 'status', 'closed')
         raise NotSupported(self.id + ' fetchClosedOrders() is not supported yet')
 
+    def fetch_canceled_and_closed_orders(self, symbol: Str = None, since: Int = None, limit: Int = None, params={}):
+        raise NotSupported(self.id + ' fetchCanceledAndClosedOrders() is not supported yet')
+
     def fetch_closed_orders_ws(self, symbol: str = None, since: Int = None, limit: Int = None, params={}):
         if self.has['fetchOrdersWs']:
             orders = self.fetchOrdersWs(symbol, since, limit, params)
@@ -4047,9 +4143,6 @@ class Exchange(object):
     def watch_my_trades(self, symbol: str = None, since: Int = None, limit: Int = None, params={}):
         raise NotSupported(self.id + ' watchMyTrades() is not supported yet')
 
-    def fetch_ohlcv_ws(self, symbol: str, timeframe: str = '1m', since: Int = None, limit: Int = None, params={}):
-        raise NotSupported(self.id + ' fetchOHLCVWs() is not supported yet')
-
     def fetch_greeks(self, symbol: str, params={}):
         raise NotSupported(self.id + ' fetchGreeks() is not supported yet')
 
@@ -4067,8 +4160,14 @@ class Exchange(object):
     def fetch_deposits(self, code: str = None, since: Int = None, limit: Int = None, params={}):
         raise NotSupported(self.id + ' fetchDeposits() is not supported yet')
 
+    def fetch_deposits_ws(self, code: str = None, since: Int = None, limit: Int = None, params={}):
+        raise NotSupported(self.id + ' fetchDepositsWs() is not supported yet')
+
     def fetch_withdrawals(self, code: str = None, since: Int = None, limit: Int = None, params={}):
         raise NotSupported(self.id + ' fetchWithdrawals() is not supported yet')
+
+    def fetch_withdrawals_ws(self, code: str = None, since: Int = None, limit: Int = None, params={}):
+        raise NotSupported(self.id + ' fetchWithdrawalsWs() is not supported yet')
 
     def fetch_open_interest(self, symbol: str, params={}):
         raise NotSupported(self.id + ' fetchOpenInterest() is not supported yet')
@@ -4137,7 +4236,12 @@ class Exchange(object):
                 if market[defaultType]:
                     return market
             return markets[0]
+        elif (symbol.endswith('-C')) or (symbol.endswith('-P')) or (symbol.startswith('C-')) or (symbol.startswith('P-')):
+            return self.createExpiredOptionMarket(symbol)
         raise BadSymbol(self.id + ' does not have market symbol ' + symbol)
+
+    def create_expired_option_market(self, symbol: str):
+        raise NotSupported(self.id + ' createExpiredOptionMarket() is not supported yet')
 
     def handle_withdraw_tag_and_params(self, tag, params):
         if isinstance(tag, dict):
@@ -4479,6 +4583,9 @@ class Exchange(object):
 
     def fetch_trading_fees(self, params={}):
         raise NotSupported(self.id + ' fetchTradingFees() is not supported yet')
+
+    def fetch_trading_fees_ws(self, params={}):
+        raise NotSupported(self.id + ' fetchTradingFeesWs() is not supported yet')
 
     def fetch_trading_fee(self, symbol: str, params={}):
         if not self.has['fetchTradingFees']:

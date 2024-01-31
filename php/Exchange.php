@@ -36,7 +36,7 @@ use Elliptic\EdDSA;
 use BN\BN;
 use Exception;
 
-$version = '4.2.18';
+$version = '4.2.29';
 
 // rounding mode
 const TRUNCATE = 0;
@@ -55,7 +55,7 @@ const PAD_WITH_ZERO = 6;
 
 class Exchange {
 
-    const VERSION = '4.2.18';
+    const VERSION = '4.2.29';
 
     private static $base58_alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     private static $base58_encoder = null;
@@ -414,6 +414,7 @@ class Exchange {
         'coinex',
         'coinlist',
         'coinmate',
+        'coinmetro',
         'coinone',
         'coinsph',
         'coinspot',
@@ -452,6 +453,7 @@ class Exchange {
         'oceanex',
         'okcoin',
         'okx',
+        'onetrading',
         'p2b',
         'paymium',
         'phemex',
@@ -2173,6 +2175,99 @@ class Exchange {
 
     // METHODS BELOW THIS LINE ARE TRANSPILED FROM JAVASCRIPT TO PYTHON AND PHP
 
+    public function safe_bool_n($dictionaryOrList, array $keys, ?bool $defaultValue = null) {
+        /**
+         * @ignore
+         * safely extract boolean $value from dictionary or list
+         * @return array(bool | null)
+         */
+        $value = $this->safe_value_n($dictionaryOrList, $keys, $defaultValue);
+        if (is_bool($value)) {
+            return $value;
+        }
+        return $defaultValue;
+    }
+
+    public function safe_bool_2($dictionary, int|string $key1, int|string $key2, ?bool $defaultValue = null) {
+        /**
+         * @ignore
+         * safely extract boolean value from $dictionary or list
+         * @return array(bool | null)
+         */
+        return $this->safe_bool_n($dictionary, array( $key1, $key2 ), $defaultValue);
+    }
+
+    public function safe_bool($dictionary, int|string $key, ?bool $defaultValue = null) {
+        /**
+         * @ignore
+         * safely extract boolean value from $dictionary or list
+         * @return array(bool | null)
+         */
+        return $this->safe_bool_n($dictionary, array( $key ), $defaultValue);
+    }
+
+    public function safe_dict_n($dictionaryOrList, array $keys, ?array $defaultValue = null) {
+        /**
+         * @ignore
+         * safely extract a dictionary from dictionary or list
+         * @return array(object | null)
+         */
+        $value = $this->safe_value_n($dictionaryOrList, $keys, $defaultValue);
+        if (gettype($value) === 'array') {
+            return $value;
+        }
+        return $defaultValue;
+    }
+
+    public function safe_dict($dictionary, int|string $key, ?array $defaultValue = null) {
+        /**
+         * @ignore
+         * safely extract a $dictionary from $dictionary or list
+         * @return array(object | null)
+         */
+        return $this->safe_dict_n($dictionary, array( $key ), $defaultValue);
+    }
+
+    public function safe_dict_2($dictionary, int|string $key1, string $key2, ?array $defaultValue = null) {
+        /**
+         * @ignore
+         * safely extract a $dictionary from $dictionary or list
+         * @return array(object | null)
+         */
+        return $this->safe_dict_n($dictionary, array( $key1, $key2 ), $defaultValue);
+    }
+
+    public function safe_list_n($dictionaryOrList, array $keys, ?array $defaultValue = null) {
+        /**
+         * @ignore
+         * safely extract an Array from dictionary or list
+         * @return array(Array | null)
+         */
+        $value = $this->safe_value_n($dictionaryOrList, $keys, $defaultValue);
+        if (gettype($value) === 'array' && array_keys($value) === array_keys(array_keys($value))) {
+            return $value;
+        }
+        return $defaultValue;
+    }
+
+    public function safe_list_2($dictionaryOrList, int|string $key1, string $key2, ?array $defaultValue = null) {
+        /**
+         * @ignore
+         * safely extract an Array from dictionary or list
+         * @return array(Array | null)
+         */
+        return $this->safe_list_n($dictionaryOrList, array( $key1, $key2 ), $defaultValue);
+    }
+
+    public function safe_list($dictionaryOrList, int|string $key, ?array $defaultValue = null) {
+        /**
+         * @ignore
+         * safely extract an Array from dictionary or list
+         * @return array(Array | null)
+         */
+        return $this->safe_list_n($dictionaryOrList, array( $key ), $defaultValue);
+    }
+
     public function handle_deltas($orderbook, $deltas) {
         for ($i = 0; $i < count($deltas); $i++) {
             $this->handle_delta($orderbook, $deltas[$i]);
@@ -3596,6 +3691,14 @@ class Exchange {
         throw new NotSupported($this->id . ' fetchOHLCV() is not supported yet' . $message);
     }
 
+    public function fetch_ohlcv_ws(string $symbol, $timeframe = '1m', ?int $since = null, ?int $limit = null, $params = array ()) {
+        $message = '';
+        if ($this->has['fetchTradesWs']) {
+            $message = '. If you want to build OHLCV candles from trade executions data, visit https://github.com/ccxt/ccxt/tree/master/examples/ and see "build-ohlcv-bars" file';
+        }
+        throw new NotSupported($this->id . ' fetchOHLCVWs() is not supported yet. Try using fetchOHLCV instead.' . $message);
+    }
+
     public function watch_ohlcv(string $symbol, $timeframe = '1m', ?int $since = null, ?int $limit = null, $params = array ()) {
         throw new NotSupported($this->id . ' watchOHLCV() is not supported yet');
     }
@@ -3961,7 +4064,7 @@ class Exchange {
         for ($i = 0; $i < count($response); $i++) {
             $item = $response[$i];
             $id = $this->safe_string($item, $marketIdKey);
-            $market = $this->safe_market($id, null, null, $this->safe_string($this->options, 'defaultType'));
+            $market = $this->safe_market($id, null, null, 'swap');
             $symbol = $market['symbol'];
             $contract = $this->safe_value($market, 'contract', false);
             if ($contract && (($symbols === null) || $this->in_array($symbol, $symbols))) {
@@ -4954,6 +5057,9 @@ class Exchange {
     }
 
     public function fetch_orders(?string $symbol = null, ?int $since = null, ?int $limit = null, $params = array ()) {
+        if ($this->has['fetchOpenOrders'] && $this->has['fetchClosedOrders']) {
+            throw new NotSupported($this->id . ' fetchOrders() is not supported yet, consider using fetchOpenOrders() and fetchClosedOrders() instead');
+        }
         throw new NotSupported($this->id . ' fetchOrders() is not supported yet');
     }
 
@@ -4993,6 +5099,10 @@ class Exchange {
         throw new NotSupported($this->id . ' fetchClosedOrders() is not supported yet');
     }
 
+    public function fetch_canceled_and_closed_orders(?string $symbol = null, ?int $since = null, ?int $limit = null, $params = array ()) {
+        throw new NotSupported($this->id . ' fetchCanceledAndClosedOrders() is not supported yet');
+    }
+
     public function fetch_closed_orders_ws(?string $symbol = null, ?int $since = null, ?int $limit = null, $params = array ()) {
         if ($this->has['fetchOrdersWs']) {
             $orders = $this->fetchOrdersWs ($symbol, $since, $limit, $params);
@@ -5021,10 +5131,6 @@ class Exchange {
         throw new NotSupported($this->id . ' watchMyTrades() is not supported yet');
     }
 
-    public function fetch_ohlcv_ws(string $symbol, string $timeframe = '1m', ?int $since = null, ?int $limit = null, $params = array ()) {
-        throw new NotSupported($this->id . ' fetchOHLCVWs() is not supported yet');
-    }
-
     public function fetch_greeks(string $symbol, $params = array ()) {
         throw new NotSupported($this->id . ' fetchGreeks() is not supported yet');
     }
@@ -5045,8 +5151,16 @@ class Exchange {
         throw new NotSupported($this->id . ' fetchDeposits() is not supported yet');
     }
 
+    public function fetch_deposits_ws(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()) {
+        throw new NotSupported($this->id . ' fetchDepositsWs() is not supported yet');
+    }
+
     public function fetch_withdrawals(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()) {
         throw new NotSupported($this->id . ' fetchWithdrawals() is not supported yet');
+    }
+
+    public function fetch_withdrawals_ws(?string $code = null, ?int $since = null, ?int $limit = null, $params = array ()) {
+        throw new NotSupported($this->id . ' fetchWithdrawalsWs() is not supported yet');
     }
 
     public function fetch_open_interest(string $symbol, $params = array ()) {
@@ -5136,8 +5250,14 @@ class Exchange {
                 }
             }
             return $markets[0];
+        } elseif ((str_ends_with($symbol, '-C')) || (str_ends_with($symbol, '-P')) || (str_starts_with($symbol, 'C-')) || (str_starts_with($symbol, 'P-'))) {
+            return $this->createExpiredOptionMarket ($symbol);
         }
         throw new BadSymbol($this->id . ' does not have $market $symbol ' . $symbol);
+    }
+
+    public function create_expired_option_market(string $symbol) {
+        throw new NotSupported($this->id . ' createExpiredOptionMarket () is not supported yet');
     }
 
     public function handle_withdraw_tag_and_params($tag, $params) {
@@ -5560,6 +5680,10 @@ class Exchange {
 
     public function fetch_trading_fees($params = array ()) {
         throw new NotSupported($this->id . ' fetchTradingFees() is not supported yet');
+    }
+
+    public function fetch_trading_fees_ws($params = array ()) {
+        throw new NotSupported($this->id . ' fetchTradingFeesWs() is not supported yet');
     }
 
     public function fetch_trading_fee(string $symbol, $params = array ()) {
