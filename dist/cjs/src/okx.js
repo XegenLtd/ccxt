@@ -281,6 +281,7 @@ class okx extends okx$1 {
                         'trade/easy-convert-history': 20,
                         'trade/one-click-repay-currency-list': 20,
                         'trade/one-click-repay-history': 20,
+                        'trade/account-rate-limit': 1,
                         // asset
                         'asset/currencies': 5 / 3,
                         'asset/balances': 5 / 3,
@@ -341,9 +342,11 @@ class okx extends okx$1 {
                         'tradingBot/grid/sub-orders': 1,
                         'tradingBot/grid/positions': 1,
                         'tradingBot/grid/ai-param': 1,
-                        'tradingBot/public/rsi-back-testing': 1,
+                        'tradingBot/signal/signals': 1,
                         'tradingBot/signal/orders-algo-details': 1,
+                        'tradingBot/signal/orders-algo-history': 1,
                         'tradingBot/signal/positions': 1,
+                        'tradingBot/signal/positions-history': 1,
                         'tradingBot/signal/sub-orders': 1,
                         'tradingBot/signal/event-history': 1,
                         'tradingBot/recurring/orders-algo-pending': 1,
@@ -463,6 +466,15 @@ class okx extends okx$1 {
                         'tradingBot/grid/compute-margin-balance': 1,
                         'tradingBot/grid/margin-balance': 1,
                         'tradingBot/grid/min-investment': 1,
+                        'tradingBot/signal/create-signal': 1,
+                        'tradingBot/signal/order-algo': 1,
+                        'tradingBot/signal/stop-order-algo': 1,
+                        'tradingBot/signal/margin-balance': 1,
+                        'tradingBot/signal/amendTPSL': 1,
+                        'tradingBot/signal/set-instruments': 1,
+                        'tradingBot/signal/close-position': 1,
+                        'tradingBot/signal/sub-order': 1,
+                        'tradingBot/signal/cancel-sub-order': 1,
                         'tradingBot/recurring/order-algo': 1,
                         'tradingBot/recurring/amend-order-algo': 1,
                         'tradingBot/recurring/stop-order-algo': 1,
@@ -1510,8 +1522,8 @@ class okx extends okx$1 {
         //         "msg": ""
         //     }
         //
-        const data = this.safeValue(response, 'data', []);
-        return this.parseMarkets(data);
+        const dataResponse = this.safeValue(response, 'data', []);
+        return this.parseMarkets(dataResponse);
     }
     safeNetwork(networkId) {
         const networksById = {
@@ -1614,7 +1626,7 @@ class okx extends okx$1 {
                 if ((networkId !== undefined) && (networkId.indexOf('-') >= 0)) {
                     const parts = networkId.split('-');
                     const chainPart = this.safeString(parts, 1, networkId);
-                    const networkCode = this.safeNetwork(chainPart);
+                    const networkCode = this.networkIdToCode(chainPart, currency['code']);
                     const precision = this.parsePrecision(this.safeString(chain, 'wdTickSz'));
                     if (maxPrecision === undefined) {
                         maxPrecision = precision;
@@ -2138,7 +2150,8 @@ class okx extends okx$1 {
             if (since < historyBorder) {
                 defaultType = 'HistoryCandles';
             }
-            request['before'] = since;
+            const startTime = Math.max(since - 1, 0);
+            request['before'] = startTime;
             request['after'] = this.sum(since, durationInMilliseconds * limit);
         }
         const until = this.safeInteger(params, 'until');
@@ -3103,7 +3116,7 @@ class okx extends okx$1 {
             throw new errors.ArgumentsRequired(this.id + ' cancelOrder() requires a symbol argument');
         }
         const stop = this.safeValue2(params, 'stop', 'trigger');
-        const trailing = this.safeValue(params, 'trailing', false);
+        const trailing = this.safeBool(params, 'trailing', false);
         if (stop || trailing) {
             const orderInner = await this.cancelOrders([id], symbol, params);
             return this.safeValue(orderInner, 0);
@@ -3137,7 +3150,7 @@ class okx extends okx$1 {
          * @param {string[]|string} ids order ids
          * @returns {string[]} list of order ids
          */
-        if (typeof ids === 'string') {
+        if ((ids !== undefined) && typeof ids === 'string') {
             return ids.split(',');
         }
         else {
@@ -3171,7 +3184,7 @@ class okx extends okx$1 {
         const clientOrderIds = this.parseIds(this.safeValue2(params, 'clOrdId', 'clientOrderId'));
         const algoIds = this.parseIds(this.safeValue(params, 'algoId'));
         const stop = this.safeValue2(params, 'stop', 'trigger');
-        const trailing = this.safeValue(params, 'trailing', false);
+        const trailing = this.safeBool(params, 'trailing', false);
         if (stop || trailing) {
             method = 'privatePostTradeCancelAlgos';
         }
@@ -3632,7 +3645,6 @@ class okx extends okx$1 {
          * @param {int} [since] the earliest time in ms to fetch open orders for
          * @param {int} [limit] the maximum number of  open orders structures to retrieve
          * @param {object} [params] extra parameters specific to the exchange API endpoint
-         * @param {int} [params.till] Timestamp in ms of the latest time to retrieve orders for
          * @param {bool} [params.stop] True if fetching trigger or conditional orders
          * @param {string} [params.ordType] "conditional", "oco", "trigger", "move_order_stop", "iceberg", or "twap"
          * @param {string} [params.algoId] Algo ID "'433845797218942976'"
@@ -3670,19 +3682,15 @@ class okx extends okx$1 {
         let method = this.safeString(params, 'method', defaultMethod);
         const ordType = this.safeString(params, 'ordType');
         const stop = this.safeValue2(params, 'stop', 'trigger');
-        const trailing = this.safeValue(params, 'trailing', false);
+        const trailing = this.safeBool(params, 'trailing', false);
         if (trailing || stop || (ordType in algoOrderTypes)) {
             method = 'privateGetTradeOrdersAlgoPending';
         }
         if (trailing) {
             request['ordType'] = 'move_order_stop';
         }
-        else if (stop || (ordType in algoOrderTypes)) {
-            if (stop) {
-                if (ordType === undefined) {
-                    throw new errors.ArgumentsRequired(this.id + ' fetchOpenOrders() requires an "ordType" string parameter, "conditional", "oco", "trigger", "move_order_stop", "iceberg", or "twap"');
-                }
-            }
+        else if (stop && (ordType === undefined)) {
+            request['ordType'] = 'trigger';
         }
         const query = this.omit(params, ['method', 'stop', 'trigger', 'trailing']);
         let response = undefined;
@@ -3839,7 +3847,7 @@ class okx extends okx$1 {
         let method = this.safeString(params, 'method', defaultMethod);
         const ordType = this.safeString(params, 'ordType');
         const stop = this.safeValue2(params, 'stop', 'trigger');
-        const trailing = this.safeValue(params, 'trailing', false);
+        const trailing = this.safeBool(params, 'trailing', false);
         if (trailing) {
             method = 'privateGetTradeOrdersAlgoHistory';
             request['ordType'] = 'move_order_stop';
@@ -3989,7 +3997,7 @@ class okx extends okx$1 {
          * @param {int} [since] the earliest time in ms to fetch orders for
          * @param {int} [limit] the maximum number of order structures to retrieve
          * @param {object} [params] extra parameters specific to the exchange API endpoint
-         * @param {bool} [params.stop] True if fetching trigger or conditional orders
+         * @param {bool} [params.trigger] True if fetching trigger or conditional orders
          * @param {string} [params.ordType] "conditional", "oco", "trigger", "move_order_stop", "iceberg", or "twap"
          * @param {string} [params.algoId] Algo ID "'433845797218942976'"
          * @param {int} [params.until] timestamp in ms to fetch orders for
@@ -4027,13 +4035,13 @@ class okx extends okx$1 {
         if (limit !== undefined) {
             request['limit'] = limit; // default 100, max 100
         }
-        const options = this.safeValue(this.options, 'fetchClosedOrders', {});
-        const algoOrderTypes = this.safeValue(this.options, 'algoOrderTypes', {});
+        const options = this.safeDict(this.options, 'fetchClosedOrders', {});
+        const algoOrderTypes = this.safeDict(this.options, 'algoOrderTypes', {});
         const defaultMethod = this.safeString(options, 'method', 'privateGetTradeOrdersHistory');
         let method = this.safeString(params, 'method', defaultMethod);
         const ordType = this.safeString(params, 'ordType');
-        const stop = this.safeValue2(params, 'stop', 'trigger');
-        const trailing = this.safeValue(params, 'trailing', false);
+        const stop = this.safeBool2(params, 'stop', 'trigger');
+        const trailing = this.safeBool(params, 'trailing', false);
         if (trailing || stop || (ordType in algoOrderTypes)) {
             method = 'privateGetTradeOrdersAlgoHistory';
             request['state'] = 'effective';
@@ -4041,11 +4049,9 @@ class okx extends okx$1 {
         if (trailing) {
             request['ordType'] = 'move_order_stop';
         }
-        else if (stop || (ordType in algoOrderTypes)) {
-            if (stop) {
-                if (ordType === undefined) {
-                    throw new errors.ArgumentsRequired(this.id + ' fetchClosedOrders() requires an "ordType" string parameter, "conditional", "oco", "trigger", "move_order_stop", "iceberg", or "twap"');
-                }
+        else if (stop) {
+            if (ordType === undefined) {
+                request['ordType'] = 'trigger';
             }
         }
         else {
@@ -4202,10 +4208,13 @@ class okx extends okx$1 {
             market = this.market(symbol);
             request['instId'] = market['id'];
         }
+        if (since !== undefined) {
+            request['begin'] = since;
+        }
         [request, params] = this.handleUntilOption('end', request, params);
         const [type, query] = this.handleMarketTypeAndParams('fetchMyTrades', market, params);
         request['instType'] = this.convertToInstrumentType(type);
-        if (limit !== undefined) {
+        if ((limit !== undefined) && (since === undefined)) { // let limit = n, okx will return the n most recent results, instead of the n results after limit, so limit should only be sent when since is undefined
             request['limit'] = limit; // default 100, max 100
         }
         const response = await this.privateGetTradeFillsHistory(this.extend(request, query));
@@ -7213,6 +7222,7 @@ class okx extends okx$1 {
                 return this.parseGreeks(entry, market);
             }
         }
+        return undefined;
     }
     parseGreeks(greeks, market = undefined) {
         //

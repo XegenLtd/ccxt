@@ -39,6 +39,9 @@ class bitforex extends Exchange {
                 'fetchClosedOrders' => true,
                 'fetchCrossBorrowRate' => false,
                 'fetchCrossBorrowRates' => false,
+                'fetchDepositAddress' => false,
+                'fetchDepositAddresses' => false,
+                'fetchDepositAddressesByNetwork' => false,
                 'fetchFundingHistory' => false,
                 'fetchFundingRate' => false,
                 'fetchFundingRateHistory' => false,
@@ -635,8 +638,8 @@ class bitforex extends Exchange {
 
     public function parse_order($order, ?array $market = null): array {
         $id = $this->safe_string($order, 'orderId');
-        $timestamp = $this->safe_number($order, 'createTime');
-        $lastTradeTimestamp = $this->safe_number($order, 'lastTime');
+        $timestamp = $this->safe_integer($order, 'createTime');
+        $lastTradeTimestamp = $this->safe_integer($order, 'lastTime');
         $symbol = $market['symbol'];
         $sideId = $this->safe_integer($order, 'tradeType');
         $side = $this->parse_side($sideId);
@@ -768,7 +771,7 @@ class bitforex extends Exchange {
         return $this->parse_orders($response['data'], $market, $since, $limit);
     }
 
-    public function create_order(string $symbol, string $type, string $side, $amount, $price = null, $params = array ()) {
+    public function create_order(string $symbol, string $type, string $side, float $amount, ?float $price = null, $params = array ()) {
         /**
          * create a trade order
          * @see https://apidoc.bitforex.com/#new-order-trade

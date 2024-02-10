@@ -6,7 +6,7 @@
 from ccxt.base.exchange import Exchange
 from ccxt.abstract.mexc import ImplicitAPI
 import hashlib
-from ccxt.base.types import Balances, Currency, Int, Market, Order, OrderBook, OrderRequest, OrderSide, OrderType, IndexType, Str, Strings, Ticker, Tickers, Trade, Transaction
+from ccxt.base.types import Balances, Currency, Int, Market, Order, TransferEntry, OrderBook, OrderRequest, OrderSide, OrderType, IndexType, Str, Strings, Ticker, Tickers, Trade, Transaction
 from typing import List
 from ccxt.base.errors import ExchangeError
 from ccxt.base.errors import PermissionDenied
@@ -958,8 +958,8 @@ class mexc(Exchange, ImplicitAPI):
                 chain = chains[j]
                 networkId = self.safe_string(chain, 'network')
                 network = self.safe_network(networkId)
-                isDepositEnabled = self.safe_value(chain, 'depositEnable', False)
-                isWithdrawEnabled = self.safe_value(chain, 'withdrawEnable', False)
+                isDepositEnabled = self.safe_bool(chain, 'depositEnable', False)
+                isWithdrawEnabled = self.safe_bool(chain, 'withdrawEnable', False)
                 active = (isDepositEnabled and isWithdrawEnabled)
                 currencyActive = active or currencyActive
                 withdrawMin = self.safe_string(chain, 'withdrawMin')
@@ -1043,7 +1043,7 @@ class mexc(Exchange, ImplicitAPI):
 
     def fetch_markets(self, params={}):
         """
-        retrieves data on all markets for mexc3
+        retrieves data on all markets for mexc
         :param dict [params]: extra parameters specific to the exchange API endpoint
         :returns dict[]: an array of objects representing market data
         """
@@ -1339,7 +1339,8 @@ class mexc(Exchange, ImplicitAPI):
             orderbook['nonce'] = self.safe_integer(data, 'version')
         return orderbook
 
-    def parse_bid_ask(self, bidask, priceKey: IndexType = 0, amountKey: IndexType = 1, countKey: IndexType = 2):
+    def parse_bid_ask(self, bidask, priceKey: IndexType = 0, amountKey: IndexType = 1, countOrIdKey: IndexType = 2):
+        countKey = 2
         price = self.safe_number(bidask, priceKey)
         amount = self.safe_number(bidask, amountKey)
         count = self.safe_number(bidask, countKey)
@@ -2001,7 +2002,7 @@ class mexc(Exchange, ImplicitAPI):
             tickers = [tickers]
         return self.parse_tickers(tickers, symbols)
 
-    def create_market_buy_order_with_cost(self, symbol: str, cost, params={}):
+    def create_market_buy_order_with_cost(self, symbol: str, cost: float, params={}):
         """
         create a market buy order by providing the symbol and cost
         :see: https://mexcdevelop.github.io/apidocs/spot_v3_en/#new-order
@@ -2017,7 +2018,7 @@ class mexc(Exchange, ImplicitAPI):
         params['createMarketBuyOrderRequiresPrice'] = False
         return self.create_order(symbol, 'market', 'buy', cost, None, params)
 
-    def create_order(self, symbol: str, type: OrderType, side: OrderSide, amount, price=None, params={}):
+    def create_order(self, symbol: str, type: OrderType, side: OrderSide, amount: float, price: float = None, params={}):
         """
         create a trade order
         :see: https://mexcdevelop.github.io/apidocs/spot_v3_en/#new-order
@@ -2116,7 +2117,7 @@ class mexc(Exchange, ImplicitAPI):
         self.load_markets()
         symbol = market['symbol']
         unavailableContracts = self.safe_value(self.options, 'unavailableContracts', {})
-        isContractUnavaiable = self.safe_value(unavailableContracts, symbol, False)
+        isContractUnavaiable = self.safe_bool(unavailableContracts, symbol, False)
         if isContractUnavaiable:
             raise NotSupported(self.id + ' createSwapOrder() does not support yet self symbol:' + symbol)
         openType = None
@@ -2171,7 +2172,7 @@ class mexc(Exchange, ImplicitAPI):
             leverage = self.safe_integer(params, 'leverage')
             if leverage is None:
                 raise ArgumentsRequired(self.id + ' createSwapOrder() requires a leverage parameter for isolated margin orders')
-        reduceOnly = self.safe_value(params, 'reduceOnly', False)
+        reduceOnly = self.safe_bool(params, 'reduceOnly', False)
         if reduceOnly:
             request['side'] = 2 if (side == 'buy') else 4
         else:
@@ -3397,7 +3398,7 @@ class mexc(Exchange, ImplicitAPI):
         request = {}
         marketType, params = self.handle_market_type_and_params('fetchBalance', None, params)
         marginMode = self.safe_string(params, 'marginMode')
-        isMargin = self.safe_value(params, 'margin', False)
+        isMargin = self.safe_bool(params, 'margin', False)
         params = self.omit(params, ['margin', 'marginMode'])
         response = None
         if (marginMode is not None) or (isMargin) or (marketType == 'margin'):
@@ -3698,7 +3699,7 @@ class mexc(Exchange, ImplicitAPI):
         """
         return self.modify_margin_helper(symbol, amount, 'ADD', params)
 
-    def set_leverage(self, leverage, symbol: Str = None, params={}):
+    def set_leverage(self, leverage: Int, symbol: Str = None, params={}):
         """
         set the level of leverage for a market
         :param float leverage: the rate of leverage
@@ -4053,7 +4054,9 @@ class mexc(Exchange, ImplicitAPI):
             'coin': currency['id'],
         }
         networkCode = self.safe_string(params, 'network')
-        networkId = self.network_code_to_id(networkCode, code)
+        networkId = None
+        if networkCode is not None:
+            networkId = self.network_code_to_id(networkCode, code)
         if networkId is not None:
             request['network'] = networkId
         params = self.omit(params, 'network')
@@ -4446,7 +4449,7 @@ class mexc(Exchange, ImplicitAPI):
         marginType = 'isolated' if (openType == '1') else 'cross'
         leverage = self.safe_number(position, 'leverage')
         liquidationPrice = self.safe_number(position, 'liquidatePrice')
-        timestamp = self.safe_number(position, 'updateTime')
+        timestamp = self.safe_integer(position, 'updateTime')
         return self.safe_position({
             'info': position,
             'id': None,
@@ -4582,7 +4585,7 @@ class mexc(Exchange, ImplicitAPI):
             #
         return self.parse_transfers(resultList, currency, since, limit)
 
-    def transfer(self, code: str, amount, fromAccount, toAccount, params={}):
+    def transfer(self, code: str, amount: float, fromAccount: str, toAccount: str, params={}) -> TransferEntry:
         """
         transfer currency internally between wallets on the same account
         :see: https://mexcdevelop.github.io/apidocs/spot_v3_en/#user-universal-transfer
@@ -4707,7 +4710,7 @@ class mexc(Exchange, ImplicitAPI):
         }
         return self.safe_string(statuses, status, status)
 
-    def withdraw(self, code: str, amount, address, tag=None, params={}):
+    def withdraw(self, code: str, amount: float, address, tag=None, params={}):
         """
         make a withdrawal
         :see: https://mexcdevelop.github.io/apidocs/spot_v3_en/#withdraw
@@ -4743,7 +4746,7 @@ class mexc(Exchange, ImplicitAPI):
         #
         return self.parse_transaction(response, currency)
 
-    def set_position_mode(self, hedged, symbol: Str = None, params={}):
+    def set_position_mode(self, hedged: bool, symbol: Str = None, params={}):
         request = {
             'positionMode': 1 if hedged else 2,  # 1 Hedge, 2 One-way, before changing position mode make sure that there are no active orders, planned orders, or open positions, the risk limit level will be reset to 1
         }
@@ -4771,7 +4774,7 @@ class mexc(Exchange, ImplicitAPI):
             'hedged': (positionMode == 1),
         }
 
-    def fetch_transaction_fees(self, codes=None, params={}):
+    def fetch_transaction_fees(self, codes: List[str] = None, params={}):
         """
         fetch deposit and withdrawal fees
         :see: https://mexcdevelop.github.io/apidocs/spot_v3_en/#query-the-currency-information
@@ -4959,7 +4962,7 @@ class mexc(Exchange, ImplicitAPI):
         :returns Array: the marginMode in lowercase
         """
         defaultType = self.safe_string(self.options, 'defaultType')
-        isMargin = self.safe_value(params, 'margin', False)
+        isMargin = self.safe_bool(params, 'margin', False)
         marginMode = None
         marginMode, params = super(mexc, self).handle_margin_mode_and_params(methodName, params, defaultValue)
         if (defaultType == 'margin') or (isMargin is True):
@@ -5035,7 +5038,7 @@ class mexc(Exchange, ImplicitAPI):
         #     {"code":10216,"msg":"No available deposit address"}
         #     {"success":true, "code":0, "data":1634095541710}
         #
-        success = self.safe_value(response, 'success', False)  # v1
+        success = self.safe_bool(response, 'success', False)  # v1
         if success is True:
             return None
         responseCode = self.safe_string(response, 'code', None)
