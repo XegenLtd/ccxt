@@ -24,8 +24,8 @@ class bitfinex2 extends Exchange {
                 'spot' => true,
                 'margin' => true,
                 'swap' => true,
-                'future' => null,
-                'option' => null,
+                'future' => false,
+                'option' => false,
                 'addMargin' => false,
                 'borrowCrossMargin' => false,
                 'borrowIsolatedMargin' => false,
@@ -36,6 +36,7 @@ class bitfinex2 extends Exchange {
                 'createLimitOrder' => true,
                 'createMarketOrder' => true,
                 'createOrder' => true,
+                'createPostOnlyOrder' => true,
                 'createReduceOnlyOrder' => true,
                 'createStopLimitOrder' => true,
                 'createStopMarketOrder' => true,
@@ -46,8 +47,11 @@ class bitfinex2 extends Exchange {
                 'editOrder' => true,
                 'fetchBalance' => true,
                 'fetchBorrowInterest' => false,
+                'fetchBorrowRate' => false,
                 'fetchBorrowRateHistories' => false,
                 'fetchBorrowRateHistory' => false,
+                'fetchBorrowRates' => false,
+                'fetchBorrowRatesPerSymbol' => false,
                 'fetchClosedOrder' => true,
                 'fetchClosedOrders' => true,
                 'fetchCrossBorrowRate' => false,
@@ -76,6 +80,8 @@ class bitfinex2 extends Exchange {
                 'fetchOpenOrder' => true,
                 'fetchOpenOrders' => true,
                 'fetchOrder' => true,
+                'fetchOrderBook' => true,
+                'fetchOrderBooks' => false,
                 'fetchOrderTrades' => true,
                 'fetchPosition' => false,
                 'fetchPositionMode' => false,
@@ -95,6 +101,8 @@ class bitfinex2 extends Exchange {
                 'setMargin' => true,
                 'setMarginMode' => false,
                 'setPositionMode' => false,
+                'signIn' => false,
+                'transfer' => true,
                 'withdraw' => true,
             ),
             'timeframes' => array(
@@ -403,6 +411,7 @@ class bitfinex2 extends Exchange {
                 'EDO' => 'PNT',
                 'EUS' => 'EURS',
                 'EUT' => 'EURT',
+                'HTX' => 'HT',
                 'IDX' => 'ID',
                 'IOT' => 'IOTA',
                 'IQX' => 'IQ',
@@ -868,7 +877,7 @@ class bitfinex2 extends Exchange {
         return $this->safe_balance($result);
     }
 
-    public function transfer(string $code, float $amount, string $fromAccount, string $toAccount, $params = array ()): TransferEntry {
+    public function transfer(string $code, float $amount, string $fromAccount, string $toAccount, $params = array ()): array {
         /**
          * transfer $currency internally between wallets on the same account
          * @see https://docs.bitfinex.com/reference/rest-auth-transfer
@@ -1368,9 +1377,11 @@ class bitfinex2 extends Exchange {
             'symbol' => $market['id'],
             'timeframe' => $this->safe_string($this->timeframes, $timeframe, $timeframe),
             'sort' => 1,
-            'start' => $since,
             'limit' => $limit,
         );
+        if ($since !== null) {
+            $request['start'] = $since;
+        }
         list($request, $params) = $this->handle_until_option('end', $request, $params);
         $response = $this->publicGetCandlesTradeTimeframeSymbolHist (array_merge($request, $params));
         //
@@ -1526,7 +1537,16 @@ class bitfinex2 extends Exchange {
          * @param {float} $amount how much you want to trade in units of the base currency
          * @param {float} [$price] the $price of the order, in units of the quote currency, ignored in $market orders
          * @param {array} [$params] extra parameters specific to the exchange API endpoint
-         * @return {array} $request to be sent to the exchange
+         * @param {float} [$params->stopPrice] The $price at which a trigger order is triggered at
+         * @param {string} [$params->timeInForce] "GTC", "IOC", "FOK", or "PO"
+         * @param {bool} [$params->postOnly]
+         * @param {bool} [$params->reduceOnly] Ensures that the executed order does not flip the opened position.
+         * @param {int} [$params->flags] additional order parameters => 4096 (Post Only), 1024 (Reduce Only), 16384 (OCO), 64 (Hidden), 512 (Close), 524288 (No Var Rates)
+         * @param {int} [$params->lev] leverage for a derivative order, supported by derivative $symbol orders only. The value should be between 1 and 100 inclusive.
+         * @param {string} [$params->price_traling] The trailing $price for a trailing stop order
+         * @param {string} [$params->price_aux_limit] Order $price for stop limit orders
+         * @param {string} [$params->price_oco_stop] OCO stop $price
+         * @return {array} an {@link https://github.com/ccxt/ccxt/wiki/Manual#order-structure order structure}
          */
         $market = $this->market($symbol);
         $amountString = $this->amount_to_precision($symbol, $amount);
@@ -3026,10 +3046,10 @@ class bitfinex2 extends Exchange {
         }
         $reversedArray = array();
         $rawRates = $this->filter_by_symbol_since_limit($rates, $symbol, $since, $limit);
-        $rawRatesLength = count($rawRates);
-        $ratesLength = max ($rawRatesLength - 1, 0);
-        for ($i = $ratesLength; $i >= 0; $i--) {
-            $valueAtIndex = $rawRates[$i];
+        $ratesLength = count($rawRates);
+        for ($i = 0; $i < $ratesLength; $i++) {
+            $index = $ratesLength - $i - 1;
+            $valueAtIndex = $rawRates[$index];
             $reversedArray[] = $valueAtIndex;
         }
         return $reversedArray;
@@ -3413,7 +3433,7 @@ class bitfinex2 extends Exchange {
         ));
     }
 
-    public function set_margin(string $symbol, $amount, $params = array ()) {
+    public function set_margin(string $symbol, float $amount, $params = array ()) {
         /**
          * either adds or reduces margin in a swap position in order to set the margin to a specific value
          * @see https://docs.bitfinex.com/reference/rest-auth-deriv-pos-collateral-set

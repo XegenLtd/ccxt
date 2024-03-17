@@ -221,7 +221,7 @@ public partial class hitbtc : ccxt.hitbtc
                 { "symbols", new List<object>() {getValue(market, "id")} },
             } },
         };
-        object orderbook = await this.subscribePublic(name, name, new List<object>() {symbol}, this.deepExtend(request, parameters));
+        object orderbook = await this.subscribePublic(name, "orderbooks", new List<object>() {symbol}, this.deepExtend(request, parameters));
         return (orderbook as IOrderBook).limit();
     }
 
@@ -250,29 +250,38 @@ public partial class hitbtc : ccxt.hitbtc
         //        }
         //    }
         //
-        object data = this.safeValue2(message, "snapshot", "update", new Dictionary<string, object>() {});
+        object snapshot = this.safeDict(message, "snapshot");
+        object update = this.safeDict(message, "update");
+        object data = ((bool) isTrue(snapshot)) ? snapshot : update;
+        object type = ((bool) isTrue(snapshot)) ? "snapshot" : "update";
         object marketIds = new List<object>(((IDictionary<string,object>)data).Keys);
-        object channel = this.safeString(message, "ch");
         for (object i = 0; isLessThan(i, getArrayLength(marketIds)); postFixIncrement(ref i))
         {
             object marketId = getValue(marketIds, i);
             object market = this.safeMarket(marketId);
             object symbol = getValue(market, "symbol");
             object item = getValue(data, marketId);
-            object messageHash = add(add(channel, "::"), symbol);
+            object messageHash = add("orderbooks::", symbol);
             if (!isTrue((inOp(this.orderbooks, symbol))))
             {
-                object subscription = this.safeValue(((WebSocketClient)client).subscriptions, messageHash, new Dictionary<string, object>() {});
+                object subscription = this.safeDict(((WebSocketClient)client).subscriptions, messageHash, new Dictionary<string, object>() {});
                 object limit = this.safeInteger(subscription, "limit");
                 ((IDictionary<string,object>)this.orderbooks)[(string)symbol] = this.orderBook(new Dictionary<string, object>() {}, limit);
             }
+            object orderbook = getValue(this.orderbooks, symbol);
             object timestamp = this.safeInteger(item, "t");
             object nonce = this.safeInteger(item, "s");
-            object orderbook = getValue(this.orderbooks, symbol);
-            object asks = this.safeValue(item, "a", new List<object>() {});
-            object bids = this.safeValue(item, "b", new List<object>() {});
-            this.handleDeltas(getValue(orderbook, "asks"), asks);
-            this.handleDeltas(getValue(orderbook, "bids"), bids);
+            if (isTrue(isEqual(type, "snapshot")))
+            {
+                object parsedSnapshot = this.parseOrderBook(item, symbol, timestamp, "b", "a");
+                (orderbook as IOrderBook).reset(parsedSnapshot);
+            } else
+            {
+                object asks = this.safeList(item, "a", new List<object>() {});
+                object bids = this.safeList(item, "b", new List<object>() {});
+                this.handleDeltas(getValue(orderbook, "asks"), asks);
+                this.handleDeltas(getValue(orderbook, "bids"), bids);
+            }
             ((IDictionary<string,object>)orderbook)["timestamp"] = timestamp;
             ((IDictionary<string,object>)orderbook)["datetime"] = this.iso8601(timestamp);
             ((IDictionary<string,object>)orderbook)["nonce"] = nonce;
@@ -328,7 +337,7 @@ public partial class hitbtc : ccxt.hitbtc
                 { "symbols", new List<object>() {getValue(market, "id")} },
             } },
         };
-        object result = await this.subscribePublic(name, "ticker", new List<object>() {symbol}, this.deepExtend(request, parameters));
+        object result = await this.subscribePublic(name, "tickers", new List<object>() {symbol}, this.deepExtend(request, parameters));
         return this.safeValue(result, symbol);
     }
 
@@ -421,7 +430,6 @@ public partial class hitbtc : ccxt.hitbtc
         //
         object data = this.safeValue(message, "data", new Dictionary<string, object>() {});
         object marketIds = new List<object>(((IDictionary<string,object>)data).Keys);
-        object channel = this.safeString(message, "ch");
         object newTickers = new Dictionary<string, object>() {};
         for (object i = 0; isLessThan(i, getArrayLength(marketIds)); postFixIncrement(ref i))
         {
@@ -431,9 +439,8 @@ public partial class hitbtc : ccxt.hitbtc
             object ticker = this.parseWsTicker(getValue(data, marketId), market);
             ((IDictionary<string,object>)this.tickers)[(string)symbol] = ticker;
             ((IDictionary<string,object>)newTickers)[(string)symbol] = ticker;
-            object messageHash = add(add(channel, "::"), symbol);
-            callDynamically(client as WebSocketClient, "resolve", new object[] {newTickers, messageHash});
         }
+        callDynamically(client as WebSocketClient, "resolve", new object[] {newTickers, "tickers"});
         object messageHashes = this.findMessageHashes(client as WebSocketClient, "tickers::");
         for (object i = 0; isLessThan(i, getArrayLength(messageHashes)); postFixIncrement(ref i))
         {
@@ -449,7 +456,6 @@ public partial class hitbtc : ccxt.hitbtc
                 callDynamically(client as WebSocketClient, "resolve", new object[] {tickers, messageHash});
             }
         }
-        callDynamically(client as WebSocketClient, "resolve", new object[] {this.tickers, channel});
         return message;
     }
 
@@ -536,7 +542,7 @@ public partial class hitbtc : ccxt.hitbtc
             ((IDictionary<string,object>)request)["limit"] = limit;
         }
         object name = "trades";
-        object trades = await this.subscribePublic(name, name, new List<object>() {symbol}, this.deepExtend(request, parameters));
+        object trades = await this.subscribePublic(name, "trades", new List<object>() {symbol}, this.deepExtend(request, parameters));
         if (isTrue(this.newUpdates))
         {
             limit = callDynamically(trades, "getLimit", new object[] {symbol, limit});
@@ -682,7 +688,7 @@ public partial class hitbtc : ccxt.hitbtc
         {
             ((IDictionary<string,object>)getValue(request, "params"))["limit"] = limit;
         }
-        object ohlcv = await this.subscribePublic(name, name, new List<object>() {symbol}, this.deepExtend(request, parameters));
+        object ohlcv = await this.subscribePublic(name, "candles", new List<object>() {symbol}, this.deepExtend(request, parameters));
         if (isTrue(this.newUpdates))
         {
             limit = callDynamically(ohlcv, "getLimit", new object[] {symbol, limit});
@@ -749,7 +755,7 @@ public partial class hitbtc : ccxt.hitbtc
             {
                 callDynamically(stored, "append", new object[] {getValue(ohlcvs, j)});
             }
-            object messageHash = add(add(channel, "::"), symbol);
+            object messageHash = add("candles::", symbol);
             callDynamically(client as WebSocketClient, "resolve", new object[] {stored, messageHash});
         }
         return message;

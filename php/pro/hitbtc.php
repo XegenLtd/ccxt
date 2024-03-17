@@ -229,7 +229,7 @@ class hitbtc extends \ccxt\async\hitbtc {
                     'symbols' => [ $market['id'] ],
                 ),
             );
-            $orderbook = Async\await($this->subscribe_public($name, $name, array( $symbol ), $this->deep_extend($request, $params)));
+            $orderbook = Async\await($this->subscribe_public($name, 'orderbooks', array( $symbol ), $this->deep_extend($request, $params)));
             return $orderbook->limit ();
         }) ();
     }
@@ -258,27 +258,34 @@ class hitbtc extends \ccxt\async\hitbtc {
         //        }
         //    }
         //
-        $data = $this->safe_value_2($message, 'snapshot', 'update', array());
+        $snapshot = $this->safe_dict($message, 'snapshot');
+        $update = $this->safe_dict($message, 'update');
+        $data = $snapshot ? $snapshot : $update;
+        $type = $snapshot ? 'snapshot' : 'update';
         $marketIds = is_array($data) ? array_keys($data) : array();
-        $channel = $this->safe_string($message, 'ch');
         for ($i = 0; $i < count($marketIds); $i++) {
             $marketId = $marketIds[$i];
             $market = $this->safe_market($marketId);
             $symbol = $market['symbol'];
             $item = $data[$marketId];
-            $messageHash = $channel . '::' . $symbol;
+            $messageHash = 'orderbooks::' . $symbol;
             if (!(is_array($this->orderbooks) && array_key_exists($symbol, $this->orderbooks))) {
-                $subscription = $this->safe_value($client->subscriptions, $messageHash, array());
+                $subscription = $this->safe_dict($client->subscriptions, $messageHash, array());
                 $limit = $this->safe_integer($subscription, 'limit');
                 $this->orderbooks[$symbol] = $this->order_book(array(), $limit);
             }
+            $orderbook = $this->orderbooks[$symbol];
             $timestamp = $this->safe_integer($item, 't');
             $nonce = $this->safe_integer($item, 's');
-            $orderbook = $this->orderbooks[$symbol];
-            $asks = $this->safe_value($item, 'a', array());
-            $bids = $this->safe_value($item, 'b', array());
-            $this->handle_deltas($orderbook['asks'], $asks);
-            $this->handle_deltas($orderbook['bids'], $bids);
+            if ($type === 'snapshot') {
+                $parsedSnapshot = $this->parse_order_book($item, $symbol, $timestamp, 'b', 'a');
+                $orderbook->reset ($parsedSnapshot);
+            } else {
+                $asks = $this->safe_list($item, 'a', array());
+                $bids = $this->safe_list($item, 'b', array());
+                $this->handle_deltas($orderbook['asks'], $asks);
+                $this->handle_deltas($orderbook['bids'], $bids);
+            }
             $orderbook['timestamp'] = $timestamp;
             $orderbook['datetime'] = $this->iso8601($timestamp);
             $orderbook['nonce'] = $nonce;
@@ -326,7 +333,7 @@ class hitbtc extends \ccxt\async\hitbtc {
                     'symbols' => [ $market['id'] ],
                 ),
             );
-            $result = Async\await($this->subscribe_public($name, 'ticker', array( $symbol ), $this->deep_extend($request, $params)));
+            $result = Async\await($this->subscribe_public($name, 'tickers', array( $symbol ), $this->deep_extend($request, $params)));
             return $this->safe_value($result, $symbol);
         }) ();
     }
@@ -411,7 +418,6 @@ class hitbtc extends \ccxt\async\hitbtc {
         //
         $data = $this->safe_value($message, 'data', array());
         $marketIds = is_array($data) ? array_keys($data) : array();
-        $channel = $this->safe_string($message, 'ch');
         $newTickers = array();
         for ($i = 0; $i < count($marketIds); $i++) {
             $marketId = $marketIds[$i];
@@ -420,9 +426,8 @@ class hitbtc extends \ccxt\async\hitbtc {
             $ticker = $this->parse_ws_ticker($data[$marketId], $market);
             $this->tickers[$symbol] = $ticker;
             $newTickers[$symbol] = $ticker;
-            $messageHash = $channel . '::' . $symbol;
-            $client->resolve ($newTickers, $messageHash);
         }
+        $client->resolve ($newTickers, 'tickers');
         $messageHashes = $this->find_message_hashes($client, 'tickers::');
         for ($i = 0; $i < count($messageHashes); $i++) {
             $messageHash = $messageHashes[$i];
@@ -436,7 +441,6 @@ class hitbtc extends \ccxt\async\hitbtc {
                 $client->resolve ($tickers, $messageHash);
             }
         }
-        $client->resolve ($this->tickers, $channel);
         return $message;
     }
 
@@ -518,7 +522,7 @@ class hitbtc extends \ccxt\async\hitbtc {
                 $request['limit'] = $limit;
             }
             $name = 'trades';
-            $trades = Async\await($this->subscribe_public($name, $name, array( $symbol ), $this->deep_extend($request, $params)));
+            $trades = Async\await($this->subscribe_public($name, 'trades', array( $symbol ), $this->deep_extend($request, $params)));
             if ($this->newUpdates) {
                 $limit = $trades->getLimit ($symbol, $limit);
             }
@@ -651,7 +655,7 @@ class hitbtc extends \ccxt\async\hitbtc {
             if ($limit !== null) {
                 $request['params']['limit'] = $limit;
             }
-            $ohlcv = Async\await($this->subscribe_public($name, $name, array( $symbol ), $this->deep_extend($request, $params)));
+            $ohlcv = Async\await($this->subscribe_public($name, 'candles', array( $symbol ), $this->deep_extend($request, $params)));
             if ($this->newUpdates) {
                 $limit = $ohlcv->getLimit ($symbol, $limit);
             }
@@ -714,7 +718,7 @@ class hitbtc extends \ccxt\async\hitbtc {
             for ($j = 0; $j < count($ohlcvs); $j++) {
                 $stored->append ($ohlcvs[$j]);
             }
-            $messageHash = $channel . '::' . $symbol;
+            $messageHash = 'candles::' . $symbol;
             $client->resolve ($stored, $messageHash);
         }
         return $message;

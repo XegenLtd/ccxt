@@ -1508,7 +1508,8 @@ public partial class digifinex : Exchange
             {
                 object endTime = this.seconds();
                 object duration = this.parseTimeframe(timeframe);
-                ((IDictionary<string,object>)request)["start_time"] = this.sum(endTime, multiply(prefixUnaryNeg(ref limit), duration));
+                object auxLimit = limit; // in c# -limit is mutating the arg
+                ((IDictionary<string,object>)request)["start_time"] = this.sum(endTime, multiply(prefixUnaryNeg(ref auxLimit), duration));
             }
             response = await this.publicSpotGetKline(this.extend(request, parameters));
         }
@@ -4353,7 +4354,7 @@ public partial class digifinex : Exchange
         return depositWithdrawFees;
     }
 
-    public async virtual Task<object> addMargin(object symbol, object amount, object parameters = null)
+    public async override Task<object> addMargin(object symbol, object amount, object parameters = null)
     {
         /**
         * @method
@@ -4372,7 +4373,7 @@ public partial class digifinex : Exchange
         return await this.modifyMarginHelper(symbol, amount, 1, parameters);
     }
 
-    public async virtual Task<object> reduceMargin(object symbol, object amount, object parameters = null)
+    public async override Task<object> reduceMargin(object symbol, object amount, object parameters = null)
     {
         /**
         * @method
