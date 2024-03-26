@@ -880,7 +880,11 @@ class cryptocom extends Exchange {
     public function parse_balance($response): array {
         $responseResult = $this->safe_value($response, 'result', array());
         $data = $this->safe_value($responseResult, 'data', array());
-        $positionBalances = $this->safe_value($data[0], 'position_balances', array());
+        if(isset($data[0])) {
+            $positionBalances = $this->safe_value($data[0], 'position_balances', array());
+        } else {
+            $positionBalances = array();
+        }
         $result = array( 'info' => $response );
         for ($i = 0; $i < count($positionBalances); $i++) {
             $balance = $positionBalances[$i];
