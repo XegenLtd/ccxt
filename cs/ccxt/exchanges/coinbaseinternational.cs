@@ -9,7 +9,7 @@ public partial class coinbaseinternational : Exchange
     {
         return this.deepExtend(base.describe(), new Dictionary<string, object>() {
             { "id", "coinbaseinternational" },
-            { "name", "coinbase International" },
+            { "name", "Coinbase International" },
             { "countries", new List<object>() {"US"} },
             { "certified", true },
             { "pro", true },
@@ -69,6 +69,7 @@ public partial class coinbaseinternational : Exchange
                 { "fetchLedger", false },
                 { "fetchLeverage", false },
                 { "fetchLeverageTiers", false },
+                { "fetchMarginAdjustmentHistory", false },
                 { "fetchMarginMode", false },
                 { "fetchMarkets", true },
                 { "fetchMarkOHLCV", false },
@@ -109,8 +110,8 @@ public partial class coinbaseinternational : Exchange
                     { "rest", "https://api-n5e1.coinbase.com/api" },
                 } },
                 { "www", "https://international.coinbase.com" },
-                { "doc", new List<object>() {"https://docs.cloud.coinbaseinternational.com/intx/docs"} },
-                { "fees", new List<object>() {"https://help.coinbaseinternational.com/en/international-exchange/trading-deposits-withdrawals/international-exchange-fees"} },
+                { "doc", new List<object>() {"https://docs.cloud.coinbase.com/intx/docs"} },
+                { "fees", new List<object>() {"https://help.coinbase.com/en/international-exchange/trading-deposits-withdrawals/international-exchange-fees"} },
                 { "referral", "" },
             } },
             { "requiredCredentials", new Dictionary<string, object>() {

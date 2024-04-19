@@ -455,7 +455,7 @@ export default class kraken extends Exchange {
          * @method
          * @name kraken#fetchMarkets
          * @description retrieves data on all markets for kraken
-         * @see https://docs.kraken.com/rest/#tag/Market-Data/operation/getTradableAssetPairs
+         * @see https://docs.kraken.com/rest/#tag/Spot-Market-Data/operation/getTradableAssetPairs
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object[]} an array of objects representing market data
          */
@@ -599,10 +599,7 @@ export default class kraken extends Exchange {
         if (currencyId !== undefined) {
             if (currencyId.length > 3) {
                 if ((currencyId.indexOf('X') === 0) || (currencyId.indexOf('Z') === 0)) {
-                    if (currencyId.indexOf('.') > 0) {
-                        return super.safeCurrency(currencyId, currency);
-                    }
-                    else {
+                    if (!(currencyId.indexOf('.') > 0)) {
                         currencyId = currencyId.slice(1);
                     }
                 }
@@ -642,7 +639,7 @@ export default class kraken extends Exchange {
          * @method
          * @name kraken#fetchCurrencies
          * @description fetches all available currencies on an exchange
-         * @see https://docs.kraken.com/rest/#tag/Market-Data/operation/getAssetInfo
+         * @see https://docs.kraken.com/rest/#tag/Spot-Market-Data/operation/getAssetInfo
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} an associative dictionary of currencies
          */
@@ -651,8 +648,13 @@ export default class kraken extends Exchange {
         //     {
         //         "error": [],
         //         "result": {
-        //             "ADA": { "aclass": "currency", "altname": "ADA", "decimals": 8, "display_decimals": 6 },
-        //             "BCH": { "aclass": "currency", "altname": "BCH", "decimals": 10, "display_decimals": 5 },
+        //             "BCH": {
+        //                 "aclass": "currency",
+        //                 "altname": "BCH",
+        //                 "decimals": 10,
+        //                 "display_decimals": 5
+        //                 "status": "enabled",
+        //             },
         //             ...
         //         },
         //     }
@@ -667,15 +669,15 @@ export default class kraken extends Exchange {
             // see: https://support.kraken.com/hc/en-us/articles/201893608-What-are-the-withdrawal-fees-
             // to add support for multiple withdrawal/deposit methods and
             // differentiated fees for each particular method
-            const code = this.safeCurrencyCode(this.safeString(currency, 'altname'));
+            const code = this.safeCurrencyCode(id);
             const precision = this.parseNumber(this.parsePrecision(this.safeString(currency, 'decimals')));
             // assumes all currencies are active except those listed above
-            const active = !this.inArray(code, this.options['inactiveCurrencies']);
+            const active = this.safeString(currency, 'status') === 'enabled';
             result[code] = {
                 'id': id,
                 'code': code,
                 'info': currency,
-                'name': code,
+                'name': this.safeString(currency, 'altname'),
                 'active': active,
                 'deposit': undefined,
                 'withdraw': undefined,
@@ -770,7 +772,7 @@ export default class kraken extends Exchange {
          * @method
          * @name kraken#fetchOrderBook
          * @description fetches information on open orders with bid (buy) and ask (sell) prices, volumes and other data
-         * @see https://docs.kraken.com/rest/#tag/Market-Data/operation/getOrderBook
+         * @see https://docs.kraken.com/rest/#tag/Spot-Market-Data/operation/getOrderBook
          * @param {string} symbol unified symbol of the market to fetch the order book for
          * @param {int} [limit] the maximum amount of order book entries to return
          * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -872,7 +874,7 @@ export default class kraken extends Exchange {
          * @method
          * @name kraken#fetchTickers
          * @description fetches price tickers for multiple markets, statistical information calculated over the past 24 hours for each market
-         * @see https://docs.kraken.com/rest/#tag/Market-Data/operation/getTickerInformation
+         * @see https://docs.kraken.com/rest/#tag/Spot-Market-Data/operation/getTickerInformation
          * @param {string[]|undefined} symbols unified symbols of the markets to fetch the ticker for, all market tickers are returned if not assigned
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} a dictionary of [ticker structures]{@link https://docs.ccxt.com/#/?id=ticker-structure}
@@ -909,7 +911,7 @@ export default class kraken extends Exchange {
          * @method
          * @name kraken#fetchTicker
          * @description fetches a price ticker, a statistical calculation with the information calculated over the past 24 hours for a specific market
-         * @see https://docs.kraken.com/rest/#tag/Market-Data/operation/getTickerInformation
+         * @see https://docs.kraken.com/rest/#tag/Spot-Market-Data/operation/getTickerInformation
          * @param {string} symbol unified symbol of the market to fetch the ticker for
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object} a [ticker structure]{@link https://docs.ccxt.com/#/?id=ticker-structure}
@@ -954,7 +956,7 @@ export default class kraken extends Exchange {
          * @method
          * @name kraken#fetchOHLCV
          * @description fetches historical candlestick data containing the open, high, low, and close price, and the volume of a market
-         * @see https://docs.kraken.com/rest/#tag/Market-Data/operation/getOHLCData
+         * @see https://docs.kraken.com/rest/#tag/Spot-Market-Data/operation/getOHLCData
          * @param {string} symbol unified symbol of the market to fetch OHLCV data for
          * @param {string} timeframe the length of time each candle represents
          * @param {int} [since] timestamp in ms of the earliest candle to fetch
@@ -1000,7 +1002,7 @@ export default class kraken extends Exchange {
         //         }
         //     }
         const result = this.safeValue(response, 'result', {});
-        const ohlcvs = this.safeValue(result, market['id'], []);
+        const ohlcvs = this.safeList(result, market['id'], []);
         return this.parseOHLCVs(ohlcvs, market, timeframe, since, limit);
     }
     parseLedgerEntryType(type) {
@@ -1252,7 +1254,7 @@ export default class kraken extends Exchange {
          * @method
          * @name kraken#fetchTrades
          * @description get the list of most recent trades for a particular symbol
-         * @see https://docs.kraken.com/rest/#tag/Market-Data/operation/getRecentTrades
+         * @see https://docs.kraken.com/rest/#tag/Spot-Market-Data/operation/getRecentTrades
          * @param {string} symbol unified symbol of the market to fetch trades for
          * @param {int} [since] timestamp in ms of the earliest trade to fetch
          * @param {int} [limit] the maximum amount of trades to fetch
@@ -1378,7 +1380,7 @@ export default class kraken extends Exchange {
             'ordertype': type,
             'volume': this.amountToPrecision(symbol, amount),
         };
-        const orderRequest = this.orderRequest('createOrder()', symbol, type, request, price, params);
+        const orderRequest = this.orderRequest('createOrder', symbol, type, request, price, params);
         const response = await this.privatePostAddOrder(this.extend(orderRequest[0], orderRequest[1]));
         //
         //     {
@@ -1389,7 +1391,7 @@ export default class kraken extends Exchange {
         //         }
         //     }
         //
-        const result = this.safeValue(response, 'result');
+        const result = this.safeDict(response, 'result');
         return this.parseOrder(result);
     }
     findMarketByAltnameOrId(id) {
@@ -1552,9 +1554,10 @@ export default class kraken extends Exchange {
         //  }
         //
         const description = this.safeDict(order, 'descr', {});
+        const orderDescriptionObj = this.safeDict(order, 'descr'); // can be null
         let orderDescription = undefined;
-        if (description !== undefined) {
-            orderDescription = this.safeString(description, 'order');
+        if (orderDescriptionObj !== undefined) {
+            orderDescription = this.safeString(orderDescriptionObj, 'order');
         }
         else {
             orderDescription = this.safeString(order, 'descr');
@@ -1629,8 +1632,8 @@ export default class kraken extends Exchange {
         }
         const status = this.parseOrderStatus(this.safeString(order, 'status'));
         let id = this.safeString2(order, 'id', 'txid');
-        if ((id === undefined) || (id.slice(0, 1) === '[')) {
-            const txid = this.safeValue(order, 'txid');
+        if ((id === undefined) || (id.startsWith('['))) {
+            const txid = this.safeList(order, 'txid');
             id = this.safeString(txid, 0);
         }
         const clientOrderId = this.safeString(order, 'userref');
@@ -1742,7 +1745,12 @@ export default class kraken extends Exchange {
             }
         }
         if (reduceOnly) {
-            request['reduce_only'] = 'true'; // not using boolean in this case, because the urlencodedNested transforms it into 'True' string
+            if (method === 'createOrderWs') {
+                request['reduce_only'] = true; // ws request can't have stringified bool
+            }
+            else {
+                request['reduce_only'] = 'true'; // not using boolean in this case, because the urlencodedNested transforms it into 'True' string
+            }
         }
         let close = this.safeValue(params, 'close');
         if (close !== undefined) {
@@ -1803,7 +1811,7 @@ export default class kraken extends Exchange {
         if (amount !== undefined) {
             request['volume'] = this.amountToPrecision(symbol, amount);
         }
-        const orderRequest = this.orderRequest('editOrder()', symbol, type, request, price, params);
+        const orderRequest = this.orderRequest('editOrder', symbol, type, request, price, params);
         const response = await this.privatePostEditOrder(this.extend(orderRequest[0], orderRequest[1]));
         //
         //     {
@@ -1821,7 +1829,7 @@ export default class kraken extends Exchange {
         //         }
         //     }
         //
-        const data = this.safeValue(response, 'result', {});
+        const data = this.safeDict(response, 'result', {});
         return this.parseOrder(data, market);
     }
     async fetchOrder(id, symbol = undefined, params = {}) {
@@ -2159,8 +2167,8 @@ export default class kraken extends Exchange {
         if (symbol !== undefined) {
             market = this.market(symbol);
         }
-        const result = this.safeValue(response, 'result', {});
-        const orders = this.safeValue(result, 'open', []);
+        const result = this.safeDict(response, 'result', {});
+        const orders = this.safeDict(result, 'open', {});
         return this.parseOrders(orders, market, since, limit);
     }
     async fetchClosedOrders(symbol = undefined, since = undefined, limit = undefined, params = {}) {
@@ -2232,8 +2240,8 @@ export default class kraken extends Exchange {
         if (symbol !== undefined) {
             market = this.market(symbol);
         }
-        const result = this.safeValue(response, 'result', {});
-        const orders = this.safeValue(result, 'closed', []);
+        const result = this.safeDict(response, 'result', {});
+        const orders = this.safeDict(result, 'closed', {});
         return this.parseOrders(orders, market, since, limit);
     }
     parseTransactionStatus(status) {
@@ -2416,7 +2424,7 @@ export default class kraken extends Exchange {
          * @method
          * @name kraken#fetchTime
          * @description fetches the current integer timestamp in milliseconds from the exchange server
-         * @see https://docs.kraken.com/rest/#tag/Market-Data/operation/getServerTime
+         * @see https://docs.kraken.com/rest/#tag/Spot-Market-Data/operation/getServerTime
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {int} the current integer timestamp in milliseconds from the exchange server
          */
@@ -2693,7 +2701,7 @@ export default class kraken extends Exchange {
             //         }
             //     }
             //
-            const result = this.safeValue(response, 'result', {});
+            const result = this.safeDict(response, 'result', {});
             return this.parseTransaction(result, currency);
         }
         throw new ExchangeError(this.id + " withdraw() requires a 'key' parameter (withdrawal key name, as set up on your account)");
@@ -2704,15 +2712,15 @@ export default class kraken extends Exchange {
          * @name kraken#fetchPositions
          * @description fetch all open positions
          * @see https://docs.kraken.com/rest/#tag/Account-Data/operation/getOpenPositions
-         * @param {string[]|undefined} symbols not used by kraken fetchPositions ()
+         * @param {string[]} [symbols] not used by kraken fetchPositions ()
          * @param {object} [params] extra parameters specific to the exchange API endpoint
          * @returns {object[]} a list of [position structure]{@link https://docs.ccxt.com/#/?id=position-structure}
          */
         await this.loadMarkets();
         const request = {
-        // 'txid': 'comma delimited list of transaction ids to restrict output to',
-        // 'docalcs': false, // whether or not to include profit/loss calculations
-        // 'consolidation': 'market', // what to consolidate the positions data around, market will consolidate positions based on market pair
+            // 'txid': 'comma delimited list of transaction ids to restrict output to',
+            'docalcs': 'true',
+            'consolidation': 'market', // what to consolidate the positions data around, market will consolidate positions based on market pair
         };
         const response = await this.privatePostOpenPositions(this.extend(request, params));
         //
@@ -2760,11 +2768,60 @@ export default class kraken extends Exchange {
         //         ]
         //     }
         //
-        const result = this.safeValue(response, 'result');
-        // todo unify parsePosition/parsePositions
-        return result;
+        symbols = this.marketSymbols(symbols);
+        const result = this.safeList(response, 'result');
+        const results = this.parsePositions(result, symbols);
+        return this.filterByArrayPositions(results, 'symbol', symbols, false);
     }
-    parseAccount(account) {
+    parsePosition(position, market = undefined) {
+        //
+        //             {
+        //                 "pair": "ETHUSDT",
+        //                 "positions": "1",
+        //                 "type": "buy",
+        //                 "leverage": "2.00000",
+        //                 "cost": "28.49800",
+        //                 "fee": "0.07979",
+        //                 "vol": "0.02000000",
+        //                 "vol_closed": "0.00000000",
+        //                 "margin": "14.24900"
+        //             }
+        //
+        const marketId = this.safeString(position, 'pair');
+        const rawSide = this.safeString(position, 'type');
+        const side = (rawSide === 'buy') ? 'long' : 'short';
+        return this.safePosition({
+            'info': position,
+            'id': undefined,
+            'symbol': this.safeSymbol(marketId, market),
+            'notional': undefined,
+            'marginMode': undefined,
+            'liquidationPrice': undefined,
+            'entryPrice': undefined,
+            'unrealizedPnl': this.safeNumber(position, 'net'),
+            'realizedPnl': undefined,
+            'percentage': undefined,
+            'contracts': this.safeNumber(position, 'vol'),
+            'contractSize': undefined,
+            'markPrice': undefined,
+            'lastPrice': undefined,
+            'side': side,
+            'hedged': undefined,
+            'timestamp': undefined,
+            'datetime': undefined,
+            'lastUpdateTimestamp': undefined,
+            'maintenanceMargin': undefined,
+            'maintenanceMarginPercentage': undefined,
+            'collateral': undefined,
+            'initialMargin': this.safeNumber(position, 'margin'),
+            'initialMarginPercentage': undefined,
+            'leverage': this.safeNumber(position, 'leverage'),
+            'marginRatio': undefined,
+            'stopLossPrice': undefined,
+            'takeProfitPrice': undefined,
+        });
+    }
+    parseAccountType(account) {
         const accountByType = {
             'spot': 'Spot Wallet',
             'swap': 'Futures Wallet',
@@ -2798,8 +2855,8 @@ export default class kraken extends Exchange {
          */
         await this.loadMarkets();
         const currency = this.currency(code);
-        fromAccount = this.parseAccount(fromAccount);
-        toAccount = this.parseAccount(toAccount);
+        fromAccount = this.parseAccountType(fromAccount);
+        toAccount = this.parseAccountType(toAccount);
         const request = {
             'amount': this.currencyToPrecision(code, amount),
             'from': fromAccount,

@@ -20,7 +20,7 @@ class coinbaseinternational extends Exchange {
     public function describe() {
         return $this->deep_extend(parent::describe(), array(
             'id' => 'coinbaseinternational',
-            'name' => 'coinbase International',
+            'name' => 'Coinbase International',
             'countries' => array( 'US' ),
             'certified' => true,
             'pro' => true,
@@ -80,6 +80,7 @@ class coinbaseinternational extends Exchange {
                 'fetchLedger' => false,
                 'fetchLeverage' => false,
                 'fetchLeverageTiers' => false,
+                'fetchMarginAdjustmentHistory' => false,
                 'fetchMarginMode' => false,
                 'fetchMarkets' => true,
                 'fetchMarkOHLCV' => false,
@@ -121,10 +122,10 @@ class coinbaseinternational extends Exchange {
                 ),
                 'www' => 'https://international.coinbase.com',
                 'doc' => array(
-                    'https://docs.cloud.coinbaseinternational.com/intx/docs',
+                    'https://docs.cloud.coinbase.com/intx/docs',
                 ),
                 'fees' => array(
-                    'https://help.coinbaseinternational.com/en/international-exchange/trading-deposits-withdrawals/international-exchange-fees',
+                    'https://help.coinbase.com/en/international-exchange/trading-deposits-withdrawals/international-exchange-fees',
                 ),
                 'referral' => '',
             ),
@@ -959,7 +960,7 @@ class coinbaseinternational extends Exchange {
         ));
     }
 
-    public function fetch_markets($params = array ()) {
+    public function fetch_markets($params = array ()): PromiseInterface {
         return Async\async(function () use ($params) {
             /**
              * @see https://docs.cloud.coinbase.com/intx/reference/getinstruments

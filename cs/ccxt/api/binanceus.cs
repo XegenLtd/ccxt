@@ -2746,6 +2746,11 @@ public partial class binanceus : binance
         return await this.callAsync ("fapiPrivateGetCommissionRate",parameters);
     }
 
+    public async Task<object> fapiPrivateGetRateLimitOrder (object parameters = null)
+    {
+        return await this.callAsync ("fapiPrivateGetRateLimitOrder",parameters);
+    }
+
     public async Task<object> fapiPrivateGetApiTradingStatus (object parameters = null)
     {
         return await this.callAsync ("fapiPrivateGetApiTradingStatus",parameters);
@@ -3294,6 +3299,11 @@ public partial class binanceus : binance
     public async Task<object> privatePostOrderOco (object parameters = null)
     {
         return await this.callAsync ("privatePostOrderOco",parameters);
+    }
+
+    public async Task<object> privatePostOrderListOco (object parameters = null)
+    {
+        return await this.callAsync ("privatePostOrderListOco",parameters);
     }
 
     public async Task<object> privatePostSorOrder (object parameters = null)
